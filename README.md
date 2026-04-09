@@ -1,7 +1,3 @@
----
-title: eai
----
-
 # eai
 
 **E aí?** Describe what you want, get the command, confirm, run.
