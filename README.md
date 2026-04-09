@@ -2,7 +2,7 @@
 
 **E aí?** Describe what you want, get the command, confirm, run.
 
-Uses cheap/local LLMs (Ollama, Groq, GLM) because generating bash doesn't need GPT-4. If the command fails, it learns from the error and tries again.
+Uses cheap/local LLMs (Ollama, Groq, GLM) because generating bash doesn't need premium LLM. If the command fails, it learns from the error and tries again.
 
 ```
 $ eai "find all rust files bigger than 1mb"
