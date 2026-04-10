@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.1](https://github.com/feliperbroering/eai/compare/v0.2.0...v0.2.1) (2026-04-10)
+
+
+### Bug Fixes
+
+* discovery UX improvements ([3da35fc](https://github.com/feliperbroering/eai/commit/3da35fcf0d289d47f1b20f4efb355dd8db6380bb))
+
 ## [0.2.0](https://github.com/feliperbroering/eai/compare/v0.1.0...v0.2.0) (2026-04-10)
 
 
