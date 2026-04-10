@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.3](https://github.com/feliperbroering/eai/compare/v0.2.2...v0.2.3) (2026-04-10)
+
+
+### Bug Fixes
+
+* indent command output and dim stderr in UI ([a011b50](https://github.com/feliperbroering/eai/commit/a011b50a667e3ccdacabf617c16b90a6196ec553))
+
 ## [0.2.2](https://github.com/feliperbroering/eai/compare/v0.2.1...v0.2.2) (2026-04-10)
 
 
