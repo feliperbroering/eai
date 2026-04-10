@@ -33,6 +33,7 @@ pub async fn gather(
     prompt: &str,
     http_client: &Client,
     search_engine: SearchEngine,
+    interactive: bool,
 ) -> Result<ToolContext> {
     let sp = ui::spinner("Analyzing prompt...");
     let tools = match extract_tool_names(backend, prompt).await {
@@ -48,25 +49,8 @@ pub async fn gather(
         return Ok(ToolContext { tool_docs: None });
     }
 
-    let all_missing = tools.iter().all(|t| which(t).is_err());
-
-    if all_missing {
-        let missing_names: Vec<String> = tools.iter().map(|s| s.to_string()).collect();
-
-        match try_discover_and_install(backend, prompt, &missing_names, http_client, search_engine)
-            .await
-        {
-            DiscoverResult::Installed(tool_name) => {
-                return gather_installed_tool(&tool_name).await;
-            }
-            DiscoverResult::Skipped => {
-                return Ok(ToolContext { tool_docs: None });
-            }
-            DiscoverResult::Cancelled => bail!("cancelled"),
-        }
-    }
-
     let mut sections = vec![];
+    let mut missing = vec![];
 
     for tool in &tools {
         if which(tool).is_ok() {
@@ -86,11 +70,24 @@ pub async fn gather(
                 }
                 None => {
                     ui::status_ok(&format!("Found {label}"));
-                    ui::status_warn(&format!("No docs found for {tool}"));
                 }
             }
         } else {
-            ui::status_warn(&format!("'{tool}' not found"));
+            missing.push(tool.to_string());
+        }
+    }
+
+    if !missing.is_empty() && interactive {
+        match try_discover_and_install(backend, prompt, &missing, http_client, search_engine).await
+        {
+            DiscoverResult::Installed(tool_name) => {
+                if let Ok(ctx) = gather_installed_tool(&tool_name).await {
+                    if let Some(doc) = ctx.tool_docs {
+                        sections.push(doc);
+                    }
+                }
+            }
+            DiscoverResult::Skipped | DiscoverResult::Cancelled => {}
         }
     }
 
@@ -410,13 +407,14 @@ async fn check_registry(client: &Client, registry: &str, pkg_name: &str) -> Opti
     if !is_valid_pkg_name(pkg_name) {
         return None;
     }
-    match registry {
-        "brew" => check_brew(client, pkg_name).await,
-        "pip" => check_pypi(client, pkg_name).await,
-        "npm" => check_npm(client, pkg_name).await,
-        "cargo" => check_crates(client, pkg_name).await,
-        _ => None,
-    }
+    let result = match registry {
+        "brew" => timeout(Duration::from_secs(5), check_brew(client, pkg_name)).await,
+        "pip" => timeout(Duration::from_secs(5), check_pypi(client, pkg_name)).await,
+        "npm" => timeout(Duration::from_secs(5), check_npm(client, pkg_name)).await,
+        "cargo" => timeout(Duration::from_secs(5), check_crates(client, pkg_name)).await,
+        _ => return None,
+    };
+    result.ok().flatten()
 }
 
 fn apply_pkg_info(s: &mut ToolSuggestion, info: &PkgInfo) {

@@ -80,8 +80,15 @@ async fn run_prompt(cli: Cli, config: AppConfig) -> Result<()> {
     let recent_history = history::load_recent(5)?;
     let should_confirm = !cli.no_confirm && config.default.confirm;
 
-    let tool_ctx =
-        tool_context::gather(&backend, &prompt, &http_client, config.search.engine).await?;
+    let interactive = !cli.dry && !cli.no_confirm;
+    let tool_ctx = tool_context::gather(
+        &backend,
+        &prompt,
+        &http_client,
+        config.search.engine,
+        interactive,
+    )
+    .await?;
 
     let mut request = CommandRequest {
         prompt: prompt.clone(),
