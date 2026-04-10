@@ -138,9 +138,10 @@ async fn run_prompt(cli: Cli, config: AppConfig) -> Result<()> {
                             &mut generation_count,
                         )
                         .await?;
+                        ui::print_command(&generated.command, generated.explanation.as_deref());
                     }
                     ui::PreAction::Search => {
-                        let query = search_query(&prompt, None, None)?;
+                        let query = search_query(&prompt, Some(&generated.command), None)?;
                         let search_results =
                             perform_search(&http_client, &config.search.engine, &query).await?;
                         request.search_results = search_results.as_prompt_context();
@@ -151,6 +152,7 @@ async fn run_prompt(cli: Cli, config: AppConfig) -> Result<()> {
                             &mut generation_count,
                         )
                         .await?;
+                        ui::print_command(&generated.command, generated.explanation.as_deref());
                     }
                     ui::PreAction::Cancel => return Ok(()),
                 }

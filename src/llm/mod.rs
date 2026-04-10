@@ -300,8 +300,55 @@ async fn ollama_has_model(client: &Client, url: &str, model: &str) -> Result<boo
     Ok(response.models.into_iter().any(|entry| entry.name == model))
 }
 
-fn env_var(key: &str) -> Option<String> {
-    env::var(key).ok().filter(|value| !value.trim().is_empty())
+pub fn env_var(key: &str) -> Option<String> {
+    env::var(key)
+        .ok()
+        .filter(|value| !value.trim().is_empty())
+        .or_else(|| read_key_from_shell_profile(key))
+}
+
+/// Fallback: parse the export line from the user's shell profile
+/// so `eai` works immediately after `eai setup` without sourcing.
+fn read_key_from_shell_profile(key: &str) -> Option<String> {
+    let home = dirs::home_dir()?;
+    let shell = env::var("SHELL").unwrap_or_default();
+    let shell_name = shell.rsplit('/').next().unwrap_or("zsh");
+
+    let profiles: Vec<std::path::PathBuf> = match shell_name {
+        "fish" => vec![home.join(".config/fish/config.fish")],
+        "bash" => vec![home.join(".bash_profile"), home.join(".bashrc")],
+        _ => vec![home.join(".zshrc")],
+    };
+
+    let export_marker = format!("{key}=");
+    let fish_marker = format!("set -gx {key} ");
+
+    for profile in profiles {
+        let Ok(contents) = std::fs::read_to_string(&profile) else {
+            continue;
+        };
+        for line in contents.lines().rev() {
+            let trimmed = line.trim();
+            if let Some(rest) = trimmed.strip_prefix("export ") {
+                if let Some(val) = rest.strip_prefix(&export_marker) {
+                    let val = val.trim_matches('"').trim_matches('\'');
+                    if !val.is_empty() {
+                        return Some(val.to_string());
+                    }
+                }
+            } else if trimmed.starts_with(&fish_marker) {
+                let val = trimmed
+                    .strip_prefix(&fish_marker)?
+                    .trim_matches('"')
+                    .trim_matches('\'');
+                if !val.is_empty() {
+                    return Some(val.to_string());
+                }
+            }
+        }
+    }
+
+    None
 }
 
 pub fn render_prompt(request: &CommandRequest) -> (String, String) {

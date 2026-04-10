@@ -1,9 +1,9 @@
-use anyhow::{Result, bail};
+use anyhow::Result;
 use reqwest::Client;
 use scraper::{Html, Selector};
 use serde::Deserialize;
 
-use crate::config::SearchEngine;
+use crate::{config::SearchEngine, llm};
 
 #[derive(Debug, Clone)]
 pub struct SearchResults {
@@ -27,8 +27,13 @@ impl SearchResults {
 
 pub async fn search(client: &Client, engine: SearchEngine, query: &str) -> Result<SearchResults> {
     match engine {
+        SearchEngine::Tavily => {
+            match llm::env_var("TAVILY_API_KEY") {
+                Some(k) => search_tavily(client, &k, query).await,
+                None => search_duckduckgo(client, query).await,
+            }
+        }
         SearchEngine::Ddg => search_duckduckgo(client, query).await,
-        SearchEngine::Serper => bail!("serper is not implemented yet"),
     }
 }
 
@@ -165,4 +170,59 @@ enum DuckTopic {
         #[serde(rename = "Topics")]
         topics: Vec<DuckTopic>,
     },
+}
+
+// ── Tavily ──────────────────────────────────────────────────────────────────
+
+async fn search_tavily(client: &Client, api_key: &str, query: &str) -> Result<SearchResults> {
+    let resp = client
+        .post("https://api.tavily.com/search")
+        .header("Authorization", format!("Bearer {api_key}"))
+        .json(&serde_json::json!({
+            "query": query,
+            "max_results": 5,
+            "search_depth": "basic"
+        }))
+        .send()
+        .await?
+        .error_for_status()?
+        .json::<TavilyResponse>()
+        .await?;
+
+    let mut snippets: Vec<String> = resp
+        .results
+        .into_iter()
+        .filter_map(|r| {
+            let text = clean_whitespace(&r.content);
+            if text.is_empty() {
+                return None;
+            }
+            let snippet = if let Some(url) = r.url.filter(|u| !u.is_empty()) {
+                format!("{text} ({url})")
+            } else {
+                text
+            };
+            Some(snippet)
+        })
+        .collect();
+
+    dedupe(&mut snippets);
+    snippets.truncate(5);
+
+    Ok(SearchResults {
+        query: query.to_string(),
+        snippets,
+    })
+}
+
+#[derive(Debug, Deserialize)]
+struct TavilyResponse {
+    #[serde(default)]
+    results: Vec<TavilyResult>,
+}
+
+#[derive(Debug, Deserialize)]
+struct TavilyResult {
+    content: String,
+    url: Option<String>,
 }

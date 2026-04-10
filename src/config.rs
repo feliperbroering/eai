@@ -230,7 +230,7 @@ fn default_search_enabled() -> bool {
 pub enum SearchEngine {
     #[default]
     Ddg,
-    Serper,
+    Tavily,
 }
 
 pub fn config_path() -> Result<PathBuf> {

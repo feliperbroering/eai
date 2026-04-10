@@ -480,6 +480,94 @@ pub fn print_stdin_badge(size: usize) {
     );
 }
 
+// ── tool discovery ──────────────────────────────────────────────────────────
+
+pub fn print_tool_suggestions(suggestions: &[crate::tool_context::ToolSuggestion]) {
+    eprintln!();
+    eprintln!(
+        "  {} {}",
+        fg_bold("🔍", &Rgb::CYAN),
+        style("Tools found for your task:").white().bold()
+    );
+    eprintln!();
+
+    for (i, s) in suggestions.iter().enumerate() {
+        eprintln!(
+            "  {}  {}",
+            fg_bold(&format!("{}.", i + 1), &Rgb::CYAN),
+            style(&s.name).white().bold(),
+        );
+        eprintln!(
+            "     {}",
+            style(&s.description).dim().italic()
+        );
+        if s.verified {
+            eprintln!("     {}", fg(&s.repo_url, &Rgb::CYAN));
+            if let Some(ref ver) = s.version {
+                eprintln!("     {}", fg(ver, &Rgb::DIM));
+            }
+        } else {
+            eprintln!(
+                "     {} {}",
+                fg(&s.repo_url, &Rgb::DIM),
+                fg("(unverified)", &Rgb::YELLOW)
+            );
+        }
+        eprintln!("     {}", style(&s.install_cmd).dim());
+        eprintln!();
+    }
+}
+
+
+pub enum InstallAction {
+    Install(usize),
+    Skip,
+    Cancel,
+}
+
+pub fn prompt_tool_install(count: usize) -> anyhow::Result<InstallAction> {
+    let range = if count == 1 { "1".to_string() } else { format!("1-{count}") };
+
+    let parts: Vec<String> = [
+        (format!("install {range}"), Rgb::GREEN),
+        ("skip s".to_string(), Rgb::YELLOW),
+        ("cancel ^C".to_string(), Rgb::DIM),
+    ]
+    .iter()
+    .map(|(text, color)| {
+        let mut words = text.splitn(2, ' ');
+        let label = words.next().unwrap_or("");
+        let key = words.next().unwrap_or("");
+        format!("{} {} {}", fg("●", color), label, fg_bold(key, color))
+    })
+    .collect();
+
+    let sep = format!("  {}  ", fg("│", &Rgb::BORDER));
+    let content = parts.join(&sep);
+    let width = measure_text_width(&content);
+    let pad = 2;
+    let inner = width + pad * 2;
+
+    eprintln!("  {}", fg(&format!("╭{}╮", "─".repeat(inner)), &Rgb::BORDER));
+    eprintln!("  {}{}{}{}{}", fg("│", &Rgb::BORDER), " ".repeat(pad), content, " ".repeat(pad), fg("│", &Rgb::BORDER));
+    eprintln!("  {}", fg(&format!("╰{}╯", "─".repeat(inner)), &Rgb::BORDER));
+
+    let term = Term::stdout();
+    loop {
+        match term.read_key()? {
+            console::Key::Char(c) if c.is_ascii_digit() => {
+                let idx = (c as u8 - b'0') as usize;
+                if idx >= 1 && idx <= count {
+                    return Ok(InstallAction::Install(idx - 1));
+                }
+            }
+            console::Key::Char('s' | 'S') => return Ok(InstallAction::Skip),
+            console::Key::CtrlC => return Ok(InstallAction::Cancel),
+            _ => {}
+        }
+    }
+}
+
 // ── input prompts ──────────────────────────────────────────────────────────
 
 pub fn prompt_text(prompt: &str, initial: &str) -> anyhow::Result<String> {

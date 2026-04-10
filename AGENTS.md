@@ -12,14 +12,14 @@ src/
   cli.rs           — clap arg definitions (Cli, Commands)
   app.rs           — orchestration: prompt → generate → confirm → execute loop
   config.rs        — TOML config at ~/.config/eai/config.toml
-  setup.rs         — interactive onboarding wizard (eai setup)
-  ui.rs            — all terminal rendering: banner, gradient box, action bar, spinners
+  setup.rs         — interactive onboarding wizard (eai setup) + optional Tavily setup
+  ui.rs            — all terminal rendering: banner, gradient box, action bar, spinners, tool suggestions
   types.rs         — shared types: BackendKind, ShellKind, CommandRequest, GeneratedCommand
-  tool_context.rs  — detects CLI tools in prompt, loads their docs (tldr/--help)
-  search.rs        — DuckDuckGo web search for syntax lookups
+  tool_context.rs  — tool detection, discovery, package registry verification, install flow
+  search.rs        — web search: Tavily (preferred) or DuckDuckGo (fallback)
   history.rs       — append-only JSONL history at ~/.local/share/eai/history.jsonl
   llm/
-    mod.rs         — Backend trait, prompt building, response parsing, backend resolution
+    mod.rs         — Backend trait, prompt building, response parsing, backend resolution, shell profile fallback
     openai.rs      — OpenAI-compatible client (also used for Groq, OpenRouter)
     ollama.rs      — Ollama local client
     claude.rs      — Claude CLI wrapper
@@ -34,6 +34,10 @@ src/
 - Tool extraction uses a separate LLM call. Filter: ASCII-only, `is_noise_word()` blocklist, max 5 tools.
 - Pipe mode: `read_stdin_if_piped()` reads up to 4K chars from stdin when not a terminal.
 - The `build_openai_compat()` helper in `llm/mod.rs` handles both Groq and OpenAI backends.
+- API keys read from env vars; `env_var()` in `llm/mod.rs` falls back to reading from shell profile.
+- Tool discovery: when all extracted tools are missing, searches web + LLM suggests alternatives, verifies against package registries (brew, PyPI, npm, crates.io), offers interactive install.
+- Search hierarchy: Tavily (if `TAVILY_API_KEY` set) → DuckDuckGo (fallback). Configured via `search.engine` in config.
+- Setup hides API key input (Password prompt) and validates keys with retry on 401.
 
 ## Conventions
 
@@ -49,3 +53,5 @@ src/
 - If adding a new provider, add it to `setup.rs` PROVIDERS array and use `build_openai_compat()` in `llm/mod.rs`.
 - If adding a new CLI flag, add to `cli.rs` Cli struct and handle in `app.rs` `run_prompt()`.
 - Keep `is_noise_word()` in `tool_context.rs` updated when LLM returns unexpected tool names.
+- If adding a new search engine, add variant to `SearchEngine` in `config.rs` and implement in `search.rs`.
+- If adding a new package registry, add `check_<registry>()` in `tool_context.rs` and wire into `verify_suggestions()`.

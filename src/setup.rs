@@ -2,11 +2,11 @@ use std::{env, fs, io::Write};
 
 use anyhow::{Context, Result, bail};
 use console::style;
-use dialoguer::{Input, Select};
+use dialoguer::{Input, Password, Select};
 use reqwest::Client;
 
 use crate::{
-    config::{self, AppConfig, BackendPreference},
+    config::{self, AppConfig, BackendPreference, SearchEngine},
     ui,
 };
 
@@ -169,40 +169,47 @@ async fn setup_api_provider(provider: &Provider) -> Result<()> {
     }
     eprintln!();
 
-    let key: String = Input::new()
-        .with_prompt(format!("  {} API Key", style("›").cyan()))
-        .interact_text()?;
+    let key = loop {
+        let input: String = Password::new()
+            .with_prompt(format!("  {} API Key", style("›").cyan()))
+            .interact()?;
 
-    let key = key.trim().to_string();
-    if key.is_empty() {
-        bail!("API key cannot be empty");
-    }
-
-    let sp = ui::spinner("Validating...");
-    let valid = validate_key(&key, provider.base_url, provider.default_model).await;
-    sp.finish_and_clear();
-
-    match valid {
-        Ok(()) => {
-            eprintln!(
-                "  {} {}",
-                style("✓").green().bold(),
-                style(format!("Key works! {} is ready.", provider.name)).green()
-            );
+        let candidate = input.trim().to_string();
+        if candidate.is_empty() {
+            bail!("API key cannot be empty");
         }
-        Err(e) => {
-            eprintln!(
-                "  {} {}",
-                style("⚠").yellow().bold(),
-                style(format!("Could not validate: {e}")).yellow()
-            );
-            eprintln!(
-                "  {} Saving anyway — test with {}",
-                style("·").dim(),
-                style("eai hello").cyan()
-            );
+
+        let sp = ui::spinner("Validating...");
+        let result = validate_key(&candidate, provider.base_url, provider.default_model).await;
+        sp.finish_and_clear();
+
+        match result {
+            ValidationResult::Valid => {
+                eprintln!(
+                    "  {} {}",
+                    style("✓").green().bold(),
+                    style(format!("Key works! {} is ready.", provider.name)).green()
+                );
+                break candidate;
+            }
+            ValidationResult::InvalidKey => {
+                eprintln!(
+                    "  {} {}",
+                    style("✗").red().bold(),
+                    style("Invalid API key — please try again.").red()
+                );
+                eprintln!();
+            }
+            ValidationResult::NetworkError(e) => {
+                eprintln!(
+                    "  {} {}",
+                    style("⚠").yellow().bold(),
+                    style(format!("Could not validate ({e}) — saving anyway.")).yellow()
+                );
+                break candidate;
+            }
         }
-    }
+    };
 
     eprintln!();
     write_shell_env(provider.api_key_env, &key)?;
@@ -210,6 +217,9 @@ async fn setup_api_provider(provider: &Provider) -> Result<()> {
 
     let mut config = AppConfig::load().unwrap_or_default();
     apply_provider_config(&mut config, provider);
+
+    offer_tavily_setup(&mut config)?;
+
     write_config(&config)?;
 
     eprintln!();
@@ -225,6 +235,9 @@ fn setup_ollama(provider: &Provider) -> Result<()> {
 
     let mut config = AppConfig::load().unwrap_or_default();
     config.default.backend = BackendPreference::Ollama;
+
+    offer_tavily_setup(&mut config)?;
+
     write_config(&config)?;
 
     eprintln!();
@@ -254,9 +267,9 @@ async fn setup_custom() -> Result<()> {
         .with_initial_text("CUSTOM_API_KEY")
         .interact_text()?;
 
-    let key: String = Input::new()
+    let key: String = Password::new()
         .with_prompt(format!("  {} API Key", style("›").cyan()))
-        .interact_text()?;
+        .interact()?;
 
     let key = key.trim().to_string();
     if key.is_empty() {
@@ -271,10 +284,95 @@ async fn setup_custom() -> Result<()> {
     config.openai.api_key_env = env_name;
     config.openai.model = model;
     config.openai.base_url = base_url;
+
+    offer_tavily_setup(&mut config)?;
+
     write_config(&config)?;
 
     eprintln!();
     print_done();
+    Ok(())
+}
+
+// ── Tavily (optional) ─────────────────────────────────────────────────────
+
+fn offer_tavily_setup(config: &mut AppConfig) -> Result<()> {
+    if env::var("TAVILY_API_KEY")
+        .ok()
+        .filter(|v| !v.trim().is_empty())
+        .is_some()
+    {
+        config.search.engine = SearchEngine::Tavily;
+        return Ok(());
+    }
+
+    eprintln!();
+    eprintln!(
+        "  {} {}",
+        style("━━━").cyan(),
+        style("Web Search (optional)").bold()
+    );
+    eprintln!();
+    eprintln!(
+        "  {} {}",
+        style("·").dim(),
+        "Tavily gives eai better web search — 1000 free searches/month."
+    );
+    eprintln!(
+        "  {} {}",
+        style("·").dim(),
+        "Helps find the right CLI tools and syntax. No credit card needed."
+    );
+    eprintln!();
+
+    let enable: String = Input::new()
+        .with_prompt(format!("  {} Enable Tavily?", style("›").cyan()))
+        .with_initial_text("y")
+        .interact_text()?;
+
+    if !enable.trim().to_lowercase().starts_with('y') {
+        eprintln!(
+            "  {} Skipped — using DuckDuckGo as fallback.",
+            style("·").dim()
+        );
+        return Ok(());
+    }
+
+    eprintln!();
+    eprintln!("  {}  Open  https://app.tavily.com", style("1.").cyan().bold());
+    eprintln!(
+        "  {}  Sign up with GitHub or Google (free, no credit card)",
+        style("2.").cyan().bold()
+    );
+    eprintln!(
+        "  {}  Copy your API key and paste it below",
+        style("3.").cyan().bold()
+    );
+    eprintln!();
+
+    let key: String = Password::new()
+        .with_prompt(format!("  {} Tavily API Key", style("›").cyan()))
+        .interact()?;
+
+    let key = key.trim().to_string();
+    if key.is_empty() {
+        eprintln!(
+            "  {} Skipped — using DuckDuckGo as fallback.",
+            style("·").dim()
+        );
+        return Ok(());
+    }
+
+    write_shell_env("TAVILY_API_KEY", &key)?;
+    unsafe { env::set_var("TAVILY_API_KEY", &key) };
+    config.search.engine = SearchEngine::Tavily;
+
+    eprintln!(
+        "  {} {}",
+        style("✓").green().bold(),
+        style("Tavily is ready.").green()
+    );
+
     Ok(())
 }
 
@@ -316,15 +414,25 @@ fn write_config(config: &AppConfig) -> Result<()> {
 
 // ── API key validation ─────────────────────────────────────────────────────
 
-async fn validate_key(key: &str, base_url: &str, model: &str) -> Result<()> {
-    let client = Client::builder()
+enum ValidationResult {
+    Valid,
+    InvalidKey,
+    NetworkError(String),
+}
+
+async fn validate_key(key: &str, base_url: &str, model: &str) -> ValidationResult {
+    let client = match Client::builder()
         .user_agent("eai/0.1.0")
         .timeout(std::time::Duration::from_secs(10))
-        .build()?;
+        .build()
+    {
+        Ok(c) => c,
+        Err(e) => return ValidationResult::NetworkError(e.to_string()),
+    };
 
     let endpoint = format!("{}/chat/completions", base_url.trim_end_matches('/'));
 
-    let resp = client
+    let resp = match client
         .post(&endpoint)
         .bearer_auth(key)
         .json(&serde_json::json!({
@@ -334,14 +442,17 @@ async fn validate_key(key: &str, base_url: &str, model: &str) -> Result<()> {
         }))
         .send()
         .await
-        .context("network error")?;
+    {
+        Ok(r) => r,
+        Err(e) => return ValidationResult::NetworkError(e.to_string()),
+    };
 
     if resp.status().is_success() {
-        Ok(())
+        ValidationResult::Valid
     } else if resp.status().as_u16() == 401 {
-        bail!("invalid API key")
+        ValidationResult::InvalidKey
     } else {
-        bail!("API returned {}", resp.status())
+        ValidationResult::NetworkError(format!("API returned {}", resp.status()))
     }
 }
 
@@ -353,10 +464,12 @@ fn write_shell_env(name: &str, value: &str) -> Result<()> {
 
     let home = dirs::home_dir().context("could not find home directory")?;
 
+    let escaped = value.replace('\'', "'\\''");
+
     let (profile, export_line) = match shell_name {
         "fish" => (
             home.join(".config/fish/config.fish"),
-            format!("set -gx {name} \"{value}\""),
+            format!("set -gx {name} '{escaped}'"),
         ),
         "bash" => {
             let p = if home.join(".bash_profile").exists() {
@@ -364,9 +477,9 @@ fn write_shell_env(name: &str, value: &str) -> Result<()> {
             } else {
                 home.join(".bashrc")
             };
-            (p, format!("export {name}=\"{value}\""))
+            (p, format!("export {name}='{escaped}'"))
         }
-        _ => (home.join(".zshrc"), format!("export {name}=\"{value}\"")),
+        _ => (home.join(".zshrc"), format!("export {name}='{escaped}'")),
     };
 
     if let Ok(contents) = fs::read_to_string(&profile) {
@@ -407,11 +520,6 @@ fn write_shell_env(name: &str, value: &str) -> Result<()> {
         style("✓").green(),
         style(name).cyan(),
         style(profile.display()).dim()
-    );
-    eprintln!(
-        "  {} Run {} or restart your terminal",
-        style("·").dim(),
-        style(format!("source {}", profile.display())).cyan()
     );
 
     Ok(())

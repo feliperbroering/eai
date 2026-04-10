@@ -37,7 +37,7 @@ impl OpenAiCompatClient {
         let endpoint = format!("{}/chat/completions", self.base_url.trim_end_matches('/'));
         let response = self
             .http_client
-            .post(endpoint)
+            .post(&endpoint)
             .bearer_auth(&self.api_key)
             .json(&ChatCompletionRequest {
                 model: self.model.clone(),
@@ -54,12 +54,29 @@ impl OpenAiCompatClient {
                 ],
             })
             .send()
-            .await?
-            .error_for_status()?
-            .json::<ChatCompletionResponse>()
             .await?;
 
-        Ok(response
+        let status = response.status();
+        if !status.is_success() {
+            if status.as_u16() == 404 {
+                bail!(
+                    "model '{}' not found on {} — make sure -m matches a model available on this backend",
+                    self.model, self.label
+                );
+            }
+            if status.as_u16() == 401 {
+                bail!(
+                    "authentication failed for {} — check your API key",
+                    self.label
+                );
+            }
+            let body = response.text().await.unwrap_or_default();
+            bail!("{} returned HTTP {} — {}", self.label, status, body);
+        }
+
+        let parsed = response.json::<ChatCompletionResponse>().await?;
+
+        Ok(parsed
             .choices
             .into_iter()
             .next()
