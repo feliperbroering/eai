@@ -27,12 +27,10 @@ impl SearchResults {
 
 pub async fn search(client: &Client, engine: SearchEngine, query: &str) -> Result<SearchResults> {
     match engine {
-        SearchEngine::Tavily => {
-            match llm::env_var("TAVILY_API_KEY") {
-                Some(k) => search_tavily(client, &k, query).await,
-                None => search_duckduckgo(client, query).await,
-            }
-        }
+        SearchEngine::Tavily => match llm::env_var("TAVILY_API_KEY") {
+            Some(k) => search_tavily(client, &k, query).await,
+            None => search_duckduckgo(client, query).await,
+        },
         SearchEngine::Ddg => search_duckduckgo(client, query).await,
     }
 }

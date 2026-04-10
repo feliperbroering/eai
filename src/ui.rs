@@ -497,10 +497,7 @@ pub fn print_tool_suggestions(suggestions: &[crate::tool_context::ToolSuggestion
             fg_bold(&format!("{}.", i + 1), &Rgb::CYAN),
             style(&s.name).white().bold(),
         );
-        eprintln!(
-            "     {}",
-            style(&s.description).dim().italic()
-        );
+        eprintln!("     {}", style(&s.description).dim().italic());
         if s.verified {
             eprintln!("     {}", fg(&s.repo_url, &Rgb::CYAN));
             if let Some(ref ver) = s.version {
@@ -518,7 +515,6 @@ pub fn print_tool_suggestions(suggestions: &[crate::tool_context::ToolSuggestion
     }
 }
 
-
 pub enum InstallAction {
     Install(usize),
     Skip,
@@ -526,7 +522,11 @@ pub enum InstallAction {
 }
 
 pub fn prompt_tool_install(count: usize) -> anyhow::Result<InstallAction> {
-    let range = if count == 1 { "1".to_string() } else { format!("1-{count}") };
+    let range = if count == 1 {
+        "1".to_string()
+    } else {
+        format!("1-{count}")
+    };
 
     let parts: Vec<String> = [
         (format!("install {range}"), Rgb::GREEN),
@@ -548,9 +548,22 @@ pub fn prompt_tool_install(count: usize) -> anyhow::Result<InstallAction> {
     let pad = 2;
     let inner = width + pad * 2;
 
-    eprintln!("  {}", fg(&format!("╭{}╮", "─".repeat(inner)), &Rgb::BORDER));
-    eprintln!("  {}{}{}{}{}", fg("│", &Rgb::BORDER), " ".repeat(pad), content, " ".repeat(pad), fg("│", &Rgb::BORDER));
-    eprintln!("  {}", fg(&format!("╰{}╯", "─".repeat(inner)), &Rgb::BORDER));
+    eprintln!(
+        "  {}",
+        fg(&format!("╭{}╮", "─".repeat(inner)), &Rgb::BORDER)
+    );
+    eprintln!(
+        "  {}{}{}{}{}",
+        fg("│", &Rgb::BORDER),
+        " ".repeat(pad),
+        content,
+        " ".repeat(pad),
+        fg("│", &Rgb::BORDER)
+    );
+    eprintln!(
+        "  {}",
+        fg(&format!("╰{}╯", "─".repeat(inner)), &Rgb::BORDER)
+    );
 
     let term = Term::stdout();
     loop {

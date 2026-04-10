@@ -187,7 +187,9 @@ async fn discover_alternatives(
     let queries: Vec<String> = missing_tools
         .iter()
         .map(|t| format!("{t} CLI tool install"))
-        .chain(std::iter::once(format!("best CLI tool for {prompt} terminal")))
+        .chain(std::iter::once(format!(
+            "best CLI tool for {prompt} terminal"
+        )))
         .collect();
 
     let mut all_snippets = Vec::new();
@@ -263,7 +265,11 @@ fn detect_registry(install_cmd: &str) -> Option<&'static str> {
 /// Extract the package name from an install command.
 fn extract_pkg_name(install_cmd: &str) -> Option<String> {
     let parts: Vec<&str> = install_cmd.split_whitespace().collect();
-    parts.iter().rev().find(|p| !p.starts_with('-')).map(|s| s.to_string())
+    parts
+        .iter()
+        .rev()
+        .find(|p| !p.starts_with('-'))
+        .map(|s| s.to_string())
 }
 
 struct PkgInfo {
@@ -286,7 +292,9 @@ async fn check_brew(client: &Client, name: &str) -> Option<PkgInfo> {
 
     let url = format!("https://formulae.brew.sh/api/formula/{name}.json");
     let resp = client.get(&url).send().await.ok()?;
-    if !resp.status().is_success() { return None; }
+    if !resp.status().is_success() {
+        return None;
+    }
     let f = resp.json::<BrewFormula>().await.ok()?;
     Some(PkgInfo {
         description: f.desc,
@@ -297,7 +305,9 @@ async fn check_brew(client: &Client, name: &str) -> Option<PkgInfo> {
 
 async fn check_pypi(client: &Client, name: &str) -> Option<PkgInfo> {
     #[derive(Deserialize)]
-    struct PyPiResponse { info: PyPiInfo }
+    struct PyPiResponse {
+        info: PyPiInfo,
+    }
     #[derive(Deserialize)]
     struct PyPiInfo {
         summary: Option<String>,
@@ -308,9 +318,13 @@ async fn check_pypi(client: &Client, name: &str) -> Option<PkgInfo> {
 
     let url = format!("https://pypi.org/pypi/{name}/json");
     let resp = client.get(&url).send().await.ok()?;
-    if !resp.status().is_success() { return None; }
+    if !resp.status().is_success() {
+        return None;
+    }
     let p = resp.json::<PyPiResponse>().await.ok()?;
-    let homepage = p.info.home_page
+    let homepage = p
+        .info
+        .home_page
         .or(p.info.project_url)
         .filter(|u| !u.is_empty());
     Some(PkgInfo {
@@ -335,7 +349,9 @@ async fn check_npm(client: &Client, name: &str) -> Option<PkgInfo> {
 
     let url = format!("https://registry.npmjs.org/{name}");
     let resp = client.get(&url).send().await.ok()?;
-    if !resp.status().is_success() { return None; }
+    if !resp.status().is_success() {
+        return None;
+    }
     let n = resp.json::<NpmPkg>().await.ok()?;
     Some(PkgInfo {
         description: n.description,
@@ -365,9 +381,13 @@ async fn check_crates(client: &Client, name: &str) -> Option<PkgInfo> {
         .send()
         .await
         .ok()?;
-    if !resp.status().is_success() { return None; }
+    if !resp.status().is_success() {
+        return None;
+    }
     let c = resp.json::<CratesResponse>().await.ok()?;
-    let homepage = c.krate.homepage
+    let homepage = c
+        .krate
+        .homepage
         .or(c.krate.repository)
         .filter(|u| !u.is_empty());
     Some(PkgInfo {
@@ -428,7 +448,9 @@ async fn verify_suggestions(http_client: &Client, suggestions: &mut [ToolSuggest
 
         let registries = ["brew", "pip", "npm", "cargo"];
         for reg in &registries {
-            if registry == Some(*reg) { continue; }
+            if registry == Some(*reg) {
+                continue;
+            }
             if let Some(info) = check_registry(http_client, reg, &s.name).await {
                 apply_pkg_info(s, &info);
                 s.install_cmd = match *reg {
@@ -445,7 +467,6 @@ async fn verify_suggestions(http_client: &Client, suggestions: &mut [ToolSuggest
 
     sp.finish_and_clear();
 }
-
 
 fn detect_package_manager() -> &'static str {
     if cfg!(target_os = "macos") {

@@ -61,7 +61,8 @@ impl OpenAiCompatClient {
             if status.as_u16() == 404 {
                 bail!(
                     "model '{}' not found on {} — make sure -m matches a model available on this backend",
-                    self.model, self.label
+                    self.model,
+                    self.label
                 );
             }
             if status.as_u16() == 401 {

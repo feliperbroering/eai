@@ -339,7 +339,10 @@ fn offer_tavily_setup(config: &mut AppConfig) -> Result<()> {
     }
 
     eprintln!();
-    eprintln!("  {}  Open  https://app.tavily.com", style("1.").cyan().bold());
+    eprintln!(
+        "  {}  Open  https://app.tavily.com",
+        style("1.").cyan().bold()
+    );
     eprintln!(
         "  {}  Sign up with GitHub or Google (free, no credit card)",
         style("2.").cyan().bold()
