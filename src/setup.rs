@@ -314,14 +314,12 @@ fn offer_tavily_setup(config: &mut AppConfig) -> Result<()> {
     );
     eprintln!();
     eprintln!(
-        "  {} {}",
+        "  {} Tavily gives eai better web search — 1000 free searches/month.",
         style("·").dim(),
-        "Tavily gives eai better web search — 1000 free searches/month."
     );
     eprintln!(
-        "  {} {}",
+        "  {} Helps find the right CLI tools and syntax. No credit card needed.",
         style("·").dim(),
-        "Helps find the right CLI tools and syntax. No credit card needed."
     );
     eprintln!();
 
