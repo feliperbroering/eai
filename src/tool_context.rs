@@ -1,6 +1,7 @@
 use std::{env, process::Stdio, time::Duration};
 
 use anyhow::{Result, bail};
+use chrono::Utc;
 use reqwest::Client;
 use serde::Deserialize;
 use tokio::{process::Command, time::timeout};
@@ -26,6 +27,20 @@ pub struct ToolSuggestion {
     pub version: Option<String>,
     #[serde(skip)]
     pub verified: bool,
+    #[serde(skip)]
+    pub stars: Option<u64>,
+    #[serde(skip)]
+    pub recent_commits: Option<u64>,
+    #[serde(skip)]
+    pub contributors: Option<u64>,
+    #[serde(skip)]
+    pub open_issues: Option<u64>,
+    #[serde(skip)]
+    pub last_push: Option<String>,
+    #[serde(skip)]
+    pub heat_score: f64,
+    #[serde(skip)]
+    pub review: Option<String>,
 }
 
 pub async fn gather(
@@ -212,11 +227,12 @@ async fn discover_alternatives(
         r#"You suggest CLI tools for a user's task. Return ONLY a JSON array (no markdown fences).
 Each element: {{"name":"...","description":"...","repo_url":"https://github.com/OWNER/REPO","install_cmd":"...","confidence":0-100}}
 Rules:
-- Suggest up to 3 real CLI tools that can accomplish the user's task, sorted by relevance
-- repo_url should be the tool's GitHub URL if you know it; use your best guess for owner/repo
+- Suggest up to 7 real, well-known CLI tools that can accomplish the user's task
+- Only suggest tools you are confident actually exist as real open-source projects
+- repo_url MUST be the exact GitHub URL — do NOT guess or fabricate owner/repo
 - install_cmd must work on {os} — prefer {pm}, fallback to pip/cargo/npm
-- confidence: 90+ = popular well-known tool, 70-89 = established, 50-69 = niche or uncertain
-- Include tools mentioned in the search results even if you're not 100% sure about the repo URL"#
+- confidence: 90+ = popular well-known tool, 70-89 = established, 50-69 = niche
+- Do NOT suggest tools just because they match a keyword — they must solve the user's actual task"#
     );
 
     let user_msg = format!(
@@ -232,12 +248,225 @@ Rules:
 
     match serde_json::from_str::<Vec<ToolSuggestion>>(&json_str) {
         Ok(mut suggestions) => {
-            suggestions.truncate(3);
+            suggestions.truncate(7);
             verify_suggestions(http_client, &mut suggestions).await;
-            suggestions.sort_by(|a, b| b.verified.cmp(&a.verified));
+            suggestions.retain(|s| s.verified);
+
+            let sp = ui::spinner("Fetching GitHub stats...");
+            enrich_with_github(http_client, &mut suggestions).await;
+            sp.finish_and_clear();
+
+            for s in &mut suggestions {
+                s.heat_score = compute_heat_score(s);
+            }
+            suggestions.sort_by(|a, b| {
+                b.heat_score
+                    .partial_cmp(&a.heat_score)
+                    .unwrap_or(std::cmp::Ordering::Equal)
+            });
+            suggestions.truncate(5);
+
+            if !suggestions.is_empty() {
+                let sp = ui::spinner("Writing editorial review...");
+                write_editorial_reviews(backend, prompt, &mut suggestions).await;
+                sp.finish_and_clear();
+            }
+
             Ok(suggestions)
         }
         Err(_) => Ok(vec![]),
+    }
+}
+
+// ── GitHub enrichment ─────────────────────────────────────────────────────
+
+fn extract_github_owner_repo(url: &str) -> Option<(String, String)> {
+    let url = url.trim().trim_end_matches('/');
+    let parts: Vec<&str> = url.split('/').collect();
+    if parts.len() >= 5 && parts[2].contains("github.com") {
+        let owner = parts[3].to_string();
+        let repo = parts[4].to_string();
+        if !owner.is_empty() && !repo.is_empty() {
+            return Some((owner, repo));
+        }
+    }
+    None
+}
+
+#[derive(Deserialize)]
+struct GitHubRepo {
+    stargazers_count: Option<u64>,
+    open_issues_count: Option<u64>,
+    pushed_at: Option<String>,
+}
+
+async fn fetch_github_stats(
+    client: &Client,
+    owner: &str,
+    repo: &str,
+) -> Option<(u64, u64, u64, u64, String)> {
+    let repo_url = format!("https://api.github.com/repos/{owner}/{repo}");
+    let contributors_url =
+        format!("https://api.github.com/repos/{owner}/{repo}/contributors?per_page=1&anon=true");
+    let commits_url = format!("https://api.github.com/repos/{owner}/{repo}/commits?per_page=1");
+
+    let headers = |req: reqwest::RequestBuilder| -> reqwest::RequestBuilder {
+        req.header("User-Agent", "eai/0.2")
+            .header("Accept", "application/vnd.github.v3+json")
+    };
+
+    let (repo_resp, contrib_resp, commits_resp) = tokio::join!(
+        timeout(
+            Duration::from_secs(5),
+            headers(client.get(&repo_url)).send()
+        ),
+        timeout(
+            Duration::from_secs(5),
+            headers(client.get(&contributors_url)).send()
+        ),
+        timeout(
+            Duration::from_secs(5),
+            headers(client.get(&commits_url)).send()
+        ),
+    );
+
+    let repo_data = repo_resp.ok()?.ok()?;
+    if !repo_data.status().is_success() {
+        return None;
+    }
+    let repo_info = repo_data.json::<GitHubRepo>().await.ok()?;
+
+    let stars = repo_info.stargazers_count.unwrap_or(0);
+    let open_issues = repo_info.open_issues_count.unwrap_or(0);
+    let last_push = repo_info.pushed_at.unwrap_or_default();
+
+    let contributors = if let Ok(Ok(resp)) = contrib_resp {
+        parse_link_total(&resp).unwrap_or(1)
+    } else {
+        0
+    };
+
+    let recent_commits = if let Ok(Ok(resp)) = commits_resp {
+        parse_link_total(&resp).unwrap_or(0)
+    } else {
+        0
+    };
+
+    Some((stars, recent_commits, contributors, open_issues, last_push))
+}
+
+fn parse_link_total(resp: &reqwest::Response) -> Option<u64> {
+    let link = resp.headers().get("link")?.to_str().ok()?;
+    for part in link.split(',') {
+        if part.contains("rel=\"last\"") {
+            let page_str = part.rsplit("page=").next()?.split('>').next()?;
+            return page_str.parse().ok();
+        }
+    }
+    None
+}
+
+async fn enrich_with_github(client: &Client, suggestions: &mut [ToolSuggestion]) {
+    let futures: Vec<_> = suggestions
+        .iter()
+        .map(|s| {
+            let client = client.clone();
+            let url = s.repo_url.clone();
+            async move {
+                if let Some((owner, repo)) = extract_github_owner_repo(&url) {
+                    fetch_github_stats(&client, &owner, &repo).await
+                } else {
+                    None
+                }
+            }
+        })
+        .collect();
+
+    let results = futures::future::join_all(futures).await;
+
+    for (s, data) in suggestions.iter_mut().zip(results) {
+        if let Some((stars, recent_commits, contributors, open_issues, last_push)) = data {
+            s.stars = Some(stars);
+            s.recent_commits = Some(recent_commits);
+            s.contributors = Some(contributors);
+            s.open_issues = Some(open_issues);
+            s.last_push = Some(last_push);
+        }
+    }
+}
+
+fn compute_heat_score(s: &ToolSuggestion) -> f64 {
+    let stars = s.stars.unwrap_or(0) as f64;
+    let contributors = s.contributors.unwrap_or(0) as f64;
+    let open_issues = s.open_issues.unwrap_or(0) as f64;
+
+    // Stars: log scale, max ~50 points (10k+ stars → ~46)
+    let star_score = (stars + 1.0).ln() * 5.0;
+
+    // Contributors: log scale, max ~20 points
+    let contrib_score = (contributors + 1.0).ln() * 4.0;
+
+    // Activity: how many days since last push, max ~20 points
+    let activity_score = if let Some(ref pushed) = s.last_push {
+        if let Ok(dt) = chrono::DateTime::parse_from_rfc3339(pushed) {
+            let days_ago = (Utc::now() - dt.with_timezone(&Utc)).num_days().max(0) as f64;
+            // Recent = high score: 0 days → 20, 30 days → 15, 365 days → 5, 2y+ → ~0
+            20.0 * (-days_ago / 200.0).exp()
+        } else {
+            0.0
+        }
+    } else {
+        0.0
+    };
+
+    // Community engagement: issues indicate active use, log scale, max ~10
+    let issue_score = (open_issues + 1.0).ln() * 2.0;
+
+    star_score + contrib_score + activity_score + issue_score
+}
+
+// ── editorial review via LLM ──────────────────────────────────────────────
+
+async fn write_editorial_reviews(
+    backend: &Backend,
+    prompt: &str,
+    suggestions: &mut [ToolSuggestion],
+) {
+    let mut tool_summaries = Vec::new();
+    for (i, s) in suggestions.iter().enumerate() {
+        let stars = s.stars.map(|v| format!("{v}")).unwrap_or("?".into());
+        let contribs = s.contributors.map(|v| format!("{v}")).unwrap_or("?".into());
+        let activity = s.last_push.as_deref().unwrap_or("unknown");
+        tool_summaries.push(format!(
+            "{}. {} — {}\n   GitHub: {} | ★ {} | contributors: {} | last push: {}",
+            i + 1,
+            s.name,
+            s.description,
+            s.repo_url,
+            stars,
+            contribs,
+            activity
+        ));
+    }
+
+    let system = r#"You are a senior developer writing a brief tool recommendation. For each tool, write 1-2 sentences explaining why it ranks where it does — mention concrete strengths (speed, accuracy, ecosystem, maintenance) and any weaknesses. Be direct and opinionated like a dev blog benchmark post.
+
+Return ONLY a JSON array of strings, one review per tool, in the same order as input. No markdown fences."#;
+
+    let user_msg = format!(
+        "User's task: {prompt}\n\nTools (ranked by popularity + activity):\n{}",
+        tool_summaries.join("\n")
+    );
+
+    let Ok(raw) = backend.call(system, &user_msg).await else {
+        return;
+    };
+
+    let json_str = extract_json_array(&raw);
+    if let Ok(reviews) = serde_json::from_str::<Vec<String>>(&json_str) {
+        for (s, review) in suggestions.iter_mut().zip(reviews) {
+            s.review = Some(review);
+        }
     }
 }
 
@@ -567,7 +796,13 @@ Input: create a git branch and push
 Output:
 
 Input: tar the src folder
-Output:"#;
+Output:
+
+Input: procure alguma tool que estime o consumo de tokens do stm32wb55cc.md
+Output: tiktoken
+
+Input: estimate token count of a markdown file for summarization
+Output: tiktoken"#;
 
     let raw = backend.call(system, prompt).await?;
 
@@ -835,5 +1070,187 @@ fn truncate(s: String, max: usize) -> String {
         s
     } else {
         format!("{}...", s.chars().take(max).collect::<String>())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn extract_github_owner_repo_valid() {
+        let cases = vec![
+            (
+                "https://github.com/BurntSushi/ripgrep",
+                Some(("BurntSushi".into(), "ripgrep".into())),
+            ),
+            (
+                "https://github.com/sharkdp/fd/",
+                Some(("sharkdp".into(), "fd".into())),
+            ),
+            (
+                "https://github.com/cli/cli",
+                Some(("cli".into(), "cli".into())),
+            ),
+        ];
+        for (url, expected) in cases {
+            assert_eq!(extract_github_owner_repo(url), expected, "url: {url}");
+        }
+    }
+
+    #[test]
+    fn extract_github_owner_repo_invalid() {
+        assert_eq!(
+            extract_github_owner_repo("https://pypi.org/project/foo"),
+            None
+        );
+        assert_eq!(extract_github_owner_repo("not a url"), None);
+        assert_eq!(extract_github_owner_repo("https://github.com/lonely"), None);
+    }
+
+    #[test]
+    fn heat_score_prefers_popular_and_active() {
+        let popular = ToolSuggestion {
+            name: "ripgrep".into(),
+            description: String::new(),
+            repo_url: String::new(),
+            install_cmd: String::new(),
+            confidence: 95,
+            version: None,
+            verified: true,
+            stars: Some(40000),
+            recent_commits: Some(500),
+            contributors: Some(200),
+            open_issues: Some(100),
+            last_push: Some("2026-04-01T00:00:00Z".into()),
+            heat_score: 0.0,
+            review: None,
+        };
+
+        let obscure = ToolSuggestion {
+            name: "obscure-tool".into(),
+            description: String::new(),
+            repo_url: String::new(),
+            install_cmd: String::new(),
+            confidence: 50,
+            version: None,
+            verified: true,
+            stars: Some(10),
+            recent_commits: Some(2),
+            contributors: Some(1),
+            open_issues: Some(0),
+            last_push: Some("2023-01-01T00:00:00Z".into()),
+            heat_score: 0.0,
+            review: None,
+        };
+
+        let stale = ToolSuggestion {
+            name: "stale-tool".into(),
+            description: String::new(),
+            repo_url: String::new(),
+            install_cmd: String::new(),
+            confidence: 70,
+            version: None,
+            verified: true,
+            stars: Some(5000),
+            recent_commits: Some(100),
+            contributors: Some(50),
+            open_issues: Some(10),
+            last_push: Some("2020-01-01T00:00:00Z".into()),
+            heat_score: 0.0,
+            review: None,
+        };
+
+        let score_popular = compute_heat_score(&popular);
+        let score_obscure = compute_heat_score(&obscure);
+        let score_stale = compute_heat_score(&stale);
+
+        assert!(
+            score_popular > score_stale,
+            "popular ({score_popular}) should beat stale ({score_stale})"
+        );
+        assert!(
+            score_stale > score_obscure,
+            "stale ({score_stale}) should beat obscure ({score_obscure})"
+        );
+        assert!(
+            score_popular > score_obscure,
+            "popular ({score_popular}) should beat obscure ({score_obscure})"
+        );
+    }
+
+    #[test]
+    fn heat_score_handles_missing_data() {
+        let minimal = ToolSuggestion {
+            name: "tool".into(),
+            description: String::new(),
+            repo_url: String::new(),
+            install_cmd: String::new(),
+            confidence: 50,
+            version: None,
+            verified: true,
+            stars: None,
+            recent_commits: None,
+            contributors: None,
+            open_issues: None,
+            last_push: None,
+            heat_score: 0.0,
+            review: None,
+        };
+        let score = compute_heat_score(&minimal);
+        assert!(score >= 0.0, "score should be non-negative: {score}");
+    }
+
+    #[test]
+    fn noise_word_filters_shell_builtins() {
+        assert!(is_noise_word("cat"));
+        assert!(is_noise_word("grep"));
+        assert!(is_noise_word("git"));
+        assert!(is_noise_word("file"));
+        assert!(!is_noise_word("ffmpeg"));
+        assert!(!is_noise_word("docker"));
+        assert!(!is_noise_word("tiktoken"));
+    }
+
+    #[test]
+    fn extract_json_array_handles_fences() {
+        assert_eq!(extract_json_array("[1,2]"), "[1,2]");
+        assert_eq!(extract_json_array("```json\n[1]\n```"), "[1]");
+        assert_eq!(extract_json_array("text [1,2] more"), "[1,2]");
+    }
+
+    #[test]
+    fn detect_registry_identifies_package_managers() {
+        assert_eq!(detect_registry("brew install foo"), Some("brew"));
+        assert_eq!(detect_registry("pip install bar"), Some("pip"));
+        assert_eq!(detect_registry("pip3 install bar"), Some("pip"));
+        assert_eq!(detect_registry("npm install -g baz"), Some("npm"));
+        assert_eq!(detect_registry("cargo install qux"), Some("cargo"));
+        assert_eq!(detect_registry("git clone https://github.com/x/y"), None);
+    }
+
+    #[test]
+    fn extract_pkg_name_gets_last_non_flag() {
+        assert_eq!(
+            extract_pkg_name("brew install ripgrep"),
+            Some("ripgrep".into())
+        );
+        assert_eq!(
+            extract_pkg_name("npm install -g tiktoken"),
+            Some("tiktoken".into())
+        );
+        assert_eq!(
+            extract_pkg_name("pip install --user foo"),
+            Some("foo".into())
+        );
+    }
+
+    #[test]
+    fn valid_pkg_name_rejects_bad_names() {
+        assert!(is_valid_pkg_name("ripgrep"));
+        assert!(is_valid_pkg_name("@scope/pkg"));
+        assert!(!is_valid_pkg_name(""));
+        assert!(!is_valid_pkg_name("a..b"));
+        assert!(!is_valid_pkg_name(&"x".repeat(200)));
     }
 }

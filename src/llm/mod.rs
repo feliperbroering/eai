@@ -301,10 +301,7 @@ async fn ollama_has_model(client: &Client, url: &str, model: &str) -> Result<boo
 }
 
 pub fn env_var(key: &str) -> Option<String> {
-    env::var(key)
-        .ok()
-        .filter(|value| !value.trim().is_empty())
-        .or_else(|| read_key_from_shell_profile(key))
+    read_key_from_shell_profile(key).or_else(|| env::var(key).ok().filter(|v| !v.trim().is_empty()))
 }
 
 /// Fallback: parse the export line from the user's shell profile

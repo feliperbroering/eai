@@ -482,6 +482,14 @@ pub fn print_stdin_badge(size: usize) {
 
 // ── tool discovery ──────────────────────────────────────────────────────────
 
+fn format_stars(n: u64) -> String {
+    if n >= 1000 {
+        format!("{:.1}k", n as f64 / 1000.0)
+    } else {
+        n.to_string()
+    }
+}
+
 pub fn print_tool_suggestions(suggestions: &[crate::tool_context::ToolSuggestion]) {
     eprintln!();
     eprintln!(
@@ -492,24 +500,36 @@ pub fn print_tool_suggestions(suggestions: &[crate::tool_context::ToolSuggestion
     eprintln!();
 
     for (i, s) in suggestions.iter().enumerate() {
+        let mut meta_parts = Vec::new();
+        if let Some(stars) = s.stars {
+            meta_parts.push(format!("★ {}", format_stars(stars)));
+        }
+        if let Some(contribs) = s.contributors {
+            if contribs > 1 {
+                meta_parts.push(format!("{contribs} contributors"));
+            }
+        }
+        if let Some(ref ver) = s.version {
+            meta_parts.push(ver.clone());
+        }
+
+        let meta = if meta_parts.is_empty() {
+            String::new()
+        } else {
+            format!("  {}", style(meta_parts.join(" · ")).dim())
+        };
+
         eprintln!(
-            "  {}  {}",
+            "  {}  {}{}",
             fg_bold(&format!("{}.", i + 1), &Rgb::CYAN),
             style(&s.name).white().bold(),
+            meta,
         );
         eprintln!("     {}", style(&s.description).dim().italic());
-        if s.verified {
-            eprintln!("     {}", fg(&s.repo_url, &Rgb::CYAN));
-            if let Some(ref ver) = s.version {
-                eprintln!("     {}", fg(ver, &Rgb::DIM));
-            }
-        } else {
-            eprintln!(
-                "     {} {}",
-                fg(&s.repo_url, &Rgb::DIM),
-                fg("(unverified)", &Rgb::YELLOW)
-            );
+        if let Some(ref review) = s.review {
+            eprintln!("     {}", fg(review, &Rgb::GREEN));
         }
+        eprintln!("     {}", fg(&s.repo_url, &Rgb::CYAN));
         eprintln!("     {}", style(&s.install_cmd).dim());
         eprintln!();
     }
