@@ -166,6 +166,7 @@ async fn run_prompt(cli: Cli, config: AppConfig) -> Result<()> {
             }
         }
 
+        eprintln!();
         let execution = execute_command(shell, &generated.command).await?;
         if !execution.is_success() {
             ui::print_failure(execution.exit_code);
@@ -312,8 +313,12 @@ async fn execute_command(shell: ShellKind, command: &str) -> Result<ExecutionRes
     let child_stdout = child.stdout.take().expect("piped stdout");
     let child_stderr = child.stderr.take().expect("piped stderr");
 
-    let stdout_task = tokio::spawn(forward_and_capture(child_stdout, tokio::io::stdout()));
-    let stderr_task = tokio::spawn(forward_and_capture(child_stderr, tokio::io::stderr()));
+    let stdout_task = tokio::spawn(forward_and_capture(child_stdout, tokio::io::stdout(), None));
+    let stderr_task = tokio::spawn(forward_and_capture(
+        child_stderr,
+        tokio::io::stderr(),
+        Some("\x1b[2m"),
+    ));
 
     let status = child.wait().await?;
     let stdout = stdout_task.await.unwrap_or_else(|_| Ok(String::new()))?;
@@ -326,7 +331,13 @@ async fn execute_command(shell: ShellKind, command: &str) -> Result<ExecutionRes
     })
 }
 
-async fn forward_and_capture<R, W>(mut reader: R, mut writer: W) -> Result<String>
+const OUTPUT_INDENT: &[u8] = b"  ";
+
+async fn forward_and_capture<R, W>(
+    mut reader: R,
+    mut writer: W,
+    ansi_prefix: Option<&str>,
+) -> Result<String>
 where
     R: tokio::io::AsyncRead + Unpin,
     W: tokio::io::AsyncWrite + Unpin,
@@ -335,15 +346,42 @@ where
 
     let mut captured = Vec::new();
     let mut buf = [0u8; 4096];
+    let mut at_line_start = true;
+    let prefix_bytes = ansi_prefix.unwrap_or("").as_bytes();
+    let reset = if ansi_prefix.is_some() {
+        b"\x1b[0m".as_slice()
+    } else {
+        b"".as_slice()
+    };
 
     loop {
         let n = reader.read(&mut buf).await?;
         if n == 0 {
             break;
         }
-        writer.write_all(&buf[..n]).await?;
-        writer.flush().await?;
         captured.extend_from_slice(&buf[..n]);
+
+        for &byte in &buf[..n] {
+            if at_line_start {
+                writer.write_all(OUTPUT_INDENT).await?;
+                writer.write_all(prefix_bytes).await?;
+                at_line_start = false;
+            }
+            if byte == b'\n' {
+                writer.write_all(reset).await?;
+                writer.write_all(&[byte]).await?;
+                at_line_start = true;
+            } else {
+                writer.write_all(&[byte]).await?;
+            }
+        }
+        writer.flush().await?;
+    }
+
+    if !at_line_start {
+        writer.write_all(reset).await?;
+        writer.write_all(b"\n").await?;
+        writer.flush().await?;
     }
 
     Ok(String::from_utf8_lossy(&captured).to_string())
