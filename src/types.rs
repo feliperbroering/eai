@@ -31,17 +31,30 @@ pub enum ShellKind {
     Bash,
     Fish,
     Sh,
+    Powershell,
+    Pwsh,
+    Cmd,
 }
 
 impl ShellKind {
     pub fn detect() -> Self {
-        let shell = env::var("SHELL").unwrap_or_default();
-        let shell = shell.rsplit('/').next().unwrap_or_default();
+        let shell = env::var("SHELL")
+            .or_else(|_| env::var("COMSPEC"))
+            .unwrap_or_default();
+        let shell = shell
+            .rsplit(['/', '\\'])
+            .next()
+            .unwrap_or_default()
+            .to_ascii_lowercase();
 
-        match shell {
-            "bash" => Self::Bash,
-            "fish" => Self::Fish,
-            "sh" => Self::Sh,
+        match shell.as_str() {
+            "bash" | "bash.exe" => Self::Bash,
+            "fish" | "fish.exe" => Self::Fish,
+            "sh" | "sh.exe" => Self::Sh,
+            "powershell" | "powershell.exe" => Self::Powershell,
+            "pwsh" | "pwsh.exe" => Self::Pwsh,
+            "cmd" | "cmd.exe" => Self::Cmd,
+            _ if cfg!(windows) => Self::Powershell,
             _ => Self::Zsh,
         }
     }
@@ -52,13 +65,20 @@ impl ShellKind {
             Self::Bash => "bash",
             Self::Fish => "fish",
             Self::Sh => "sh",
+            Self::Powershell => "powershell",
+            Self::Pwsh => "pwsh",
+            Self::Cmd => "cmd",
         }
     }
 
-    pub fn command_flag(self) -> &'static str {
+    pub fn command_args(self, command: &str) -> Vec<&str> {
         match self {
-            Self::Fish => "-c",
-            Self::Zsh | Self::Bash | Self::Sh => "-lc",
+            Self::Fish => vec!["-c", command],
+            Self::Zsh | Self::Bash | Self::Sh => vec!["-lc", command],
+            Self::Powershell | Self::Pwsh => {
+                vec!["-NoLogo", "-NoProfile", "-Command", command]
+            }
+            Self::Cmd => vec!["/C", command],
         }
     }
 }

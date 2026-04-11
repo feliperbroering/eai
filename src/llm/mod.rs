@@ -127,7 +127,10 @@ async fn build_backend(
             requested_model.unwrap_or(&config.openai.model),
         )?,
         BackendKind::ClaudeCli => {
-            which("claude").map_err(|_| anyhow!("claude was not found in PATH"))?;
+            let allow_mock = env::var("EAI_MOCK_CLAUDE").ok().as_deref() == Some("1");
+            if !allow_mock {
+                which("claude").map_err(|_| anyhow!("claude was not found in PATH"))?;
+            }
             let client = ClaudeCliClient::new(requested_model.map(str::to_string));
             Backend::new(Box::new(client))
         }
@@ -308,6 +311,22 @@ pub fn env_var(key: &str) -> Option<String> {
 /// so `eai` works immediately after `eai setup` without sourcing.
 fn read_key_from_shell_profile(key: &str) -> Option<String> {
     let home = dirs::home_dir()?;
+    if cfg!(windows) {
+        for profile in windows_powershell_profiles(&home) {
+            let Ok(contents) = std::fs::read_to_string(&profile) else {
+                continue;
+            };
+            for line in contents.lines().rev() {
+                if let Some(val) = parse_powershell_env_line(line.trim(), key)
+                    && !val.is_empty()
+                {
+                    return Some(val);
+                }
+            }
+        }
+        return None;
+    }
+
     let shell = env::var("SHELL").unwrap_or_default();
     let shell_name = shell.rsplit('/').next().unwrap_or("zsh");
 
@@ -346,6 +365,31 @@ fn read_key_from_shell_profile(key: &str) -> Option<String> {
     }
 
     None
+}
+
+fn windows_powershell_profiles(home: &std::path::Path) -> Vec<std::path::PathBuf> {
+    let documents = home.join("Documents");
+    vec![
+        documents.join("PowerShell").join("Microsoft.PowerShell_profile.ps1"),
+        documents
+            .join("WindowsPowerShell")
+            .join("Microsoft.PowerShell_profile.ps1"),
+    ]
+}
+
+fn parse_powershell_env_line(line: &str, key: &str) -> Option<String> {
+    let marker = format!("$env:{key}");
+    if !line.starts_with(&marker) {
+        return None;
+    }
+
+    let (_, value_part) = line.split_once('=')?;
+    let value = value_part
+        .trim()
+        .trim_matches('"')
+        .trim_matches('\'')
+        .to_string();
+    Some(value)
 }
 
 pub fn render_prompt(request: &CommandRequest) -> (String, String) {

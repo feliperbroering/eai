@@ -1,10 +1,9 @@
-use std::io::IsTerminal;
+use std::io::{IsTerminal, Read};
 use std::process::Stdio;
 
 use anyhow::{Context, Result, bail};
 use chrono::Utc;
 use reqwest::Client;
-use tokio::io::AsyncReadExt;
 use tokio::process::Command;
 
 use console::style;
@@ -187,6 +186,13 @@ async fn run_prompt(cli: Cli, config: AppConfig) -> Result<()> {
             return Ok(());
         }
 
+        if !should_confirm {
+            if execution.is_success() {
+                return Ok(());
+            }
+            bail!("command failed with exit {}", execution.exit_code);
+        }
+
         if generation_count >= MAX_ITERATIONS {
             bail!("reached max iterations ({MAX_ITERATIONS})");
         }
@@ -221,7 +227,13 @@ async fn run_prompt(cli: Cli, config: AppConfig) -> Result<()> {
 
 async fn open_config() -> Result<()> {
     let path = AppConfig::ensure_config_file()?;
-    let editor = std::env::var("EDITOR").unwrap_or_else(|_| "vi".to_string());
+    let editor = std::env::var("EDITOR").unwrap_or_else(|_| {
+        if cfg!(windows) {
+            "notepad".to_string()
+        } else {
+            "vi".to_string()
+        }
+    });
     let mut parts = shlex::split(&editor).unwrap_or_else(|| vec![editor.clone()]);
 
     let program = parts
@@ -303,8 +315,7 @@ async fn perform_search(
 
 async fn execute_command(shell: ShellKind, command: &str) -> Result<ExecutionResult> {
     let mut child = Command::new(shell.program())
-        .arg(shell.command_flag())
-        .arg(command)
+        .args(shell.command_args(command))
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn()
@@ -456,14 +467,17 @@ async fn read_stdin_if_piped() -> Option<String> {
         return None;
     }
 
-    let result = tokio::time::timeout(std::time::Duration::from_secs(5), async {
+    let (tx, rx) = std::sync::mpsc::channel::<Vec<u8>>();
+    std::thread::spawn(move || {
         let mut buf = Vec::new();
-        tokio::io::stdin().read_to_end(&mut buf).await.ok()?;
-        Some(String::from_utf8_lossy(&buf).to_string())
-    })
-    .await
-    .ok()
-    .flatten();
+        let _ = std::io::stdin().read_to_end(&mut buf);
+        let _ = tx.send(buf);
+    });
+
+    let result = rx
+        .recv_timeout(std::time::Duration::from_secs(5))
+        .ok()
+        .map(|buf| String::from_utf8_lossy(&buf).to_string());
 
     result.and_then(|text| {
         if text.trim().is_empty() {

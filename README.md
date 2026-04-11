@@ -177,7 +177,23 @@ model = "qwen3:4b"
 engine = "tavily"    # or "ddg" (default)
 ```
 
-Config location: `~/.config/eai/config.toml` (Linux) or `~/Library/Application Support/eai/config.toml` (macOS).
+Config location:
+- Linux: `~/.config/eai/config.toml`
+- macOS: `~/Library/Application Support/eai/config.toml`
+- Windows: `%APPDATA%\eai\config.toml`
+
+## E2E Tests (Robot Framework)
+
+```bash
+python -m pip install -r tests/e2e/requirements.txt
+robot tests/e2e/eai.robot
+```
+
+The suite uses a mocked `claude` CLI and validates end-to-end flows for:
+- command generation in `--dry`
+- command execution in shell
+- `--explain`
+- history persistence
 
 ## vs other tools
 

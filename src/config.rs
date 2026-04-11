@@ -1,4 +1,5 @@
 use std::{
+    env,
     fs,
     path::{Path, PathBuf},
 };
@@ -234,11 +235,21 @@ pub enum SearchEngine {
 }
 
 pub fn config_path() -> Result<PathBuf> {
+    if let Ok(override_dir) = env::var("EAI_CONFIG_DIR")
+        && !override_dir.trim().is_empty()
+    {
+        return Ok(PathBuf::from(override_dir).join("eai").join("config.toml"));
+    }
     let base = dirs::config_dir().ok_or_else(|| anyhow!("failed to resolve config dir"))?;
     Ok(base.join("eai").join("config.toml"))
 }
 
 pub fn history_path() -> Result<PathBuf> {
+    if let Ok(override_dir) = env::var("EAI_DATA_DIR")
+        && !override_dir.trim().is_empty()
+    {
+        return Ok(PathBuf::from(override_dir).join("eai").join("history.jsonl"));
+    }
     let base = dirs::data_local_dir().ok_or_else(|| anyhow!("failed to resolve data dir"))?;
     Ok(base.join("eai").join("history.jsonl"))
 }

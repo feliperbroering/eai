@@ -1,4 +1,4 @@
-use std::{env, fs, io::Write};
+use std::{env, fs, io::Write, path::PathBuf, process::Command};
 
 use anyhow::{Context, Result, bail};
 use console::style;
@@ -460,6 +460,10 @@ async fn validate_key(key: &str, base_url: &str, model: &str) -> ValidationResul
 // ── shell profile ──────────────────────────────────────────────────────────
 
 fn write_shell_env(name: &str, value: &str) -> Result<()> {
+    if cfg!(windows) {
+        return write_windows_env(name, value);
+    }
+
     let shell = env::var("SHELL").unwrap_or_default();
     let shell_name = shell.rsplit('/').next().unwrap_or("zsh");
 
@@ -524,6 +528,80 @@ fn write_shell_env(name: &str, value: &str) -> Result<()> {
     );
 
     Ok(())
+}
+
+fn write_windows_env(name: &str, value: &str) -> Result<()> {
+    let profile = windows_powershell_profile_path()?;
+    config::ensure_parent(&profile)?;
+
+    let escaped = value.replace('"', "`\"");
+    let export_line = format!("$env:{name} = \"{escaped}\"");
+    let marker = format!("$env:{name}");
+
+    if let Ok(contents) = fs::read_to_string(&profile) {
+        if contents.contains(&marker) {
+            let updated: Vec<String> = contents
+                .lines()
+                .map(|line| {
+                    if line.trim_start().starts_with(&marker) {
+                        export_line.clone()
+                    } else {
+                        line.to_string()
+                    }
+                })
+                .collect();
+            fs::write(&profile, updated.join("\n") + "\n")?;
+        } else {
+            let mut file = fs::OpenOptions::new()
+                .create(true)
+                .append(true)
+                .open(&profile)?;
+            writeln!(file)?;
+            writeln!(file, "# eai — AI shell command generator")?;
+            writeln!(file, "{export_line}")?;
+        }
+    } else {
+        let mut file = fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(&profile)?;
+        writeln!(file, "# eai — AI shell command generator")?;
+        writeln!(file, "{export_line}")?;
+    }
+
+    eprintln!(
+        "  {} Updated {} in {}",
+        style("✓").green(),
+        style(name).cyan(),
+        style(profile.display()).dim()
+    );
+
+    let setx_status = Command::new("setx").arg(name).arg(value).status();
+    if let Ok(status) = setx_status {
+        if !status.success() {
+            eprintln!(
+                "  {} Could not persist {} with setx (exit {}).",
+                style("⚠").yellow(),
+                style(name).cyan(),
+                status.code().unwrap_or_default()
+            );
+        }
+    } else {
+        eprintln!(
+            "  {} Could not run setx. New sessions may need profile reload.",
+            style("⚠").yellow()
+        );
+    }
+
+    Ok(())
+}
+
+fn windows_powershell_profile_path() -> Result<PathBuf> {
+    let home = dirs::home_dir().context("could not find home directory")?;
+    Ok(home
+        .join("Documents")
+        .join("PowerShell")
+        .join("Microsoft.PowerShell_profile.ps1"))
 }
 
 // ── UX ─────────────────────────────────────────────────────────────────────
