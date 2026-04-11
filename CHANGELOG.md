@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.2.4](https://github.com/feliperbroering/eai/compare/v0.2.3...v0.2.4) (2026-04-11)
+
+
+### Bug Fixes
+
+* **ci:** apply rustfmt adjustments for windows changes ([9bda141](https://github.com/feliperbroering/eai/commit/9bda1417d4f5950657b844d410a7f97388ce1cad))
+* **windows:** add native shell support and robust e2e coverage ([b138b42](https://github.com/feliperbroering/eai/commit/b138b429b4c7d2ca5aead69dbcb7eb44fa00ab2a))
+
 ## [0.2.3](https://github.com/feliperbroering/eai/compare/v0.2.2...v0.2.3) (2026-04-10)
 
 
