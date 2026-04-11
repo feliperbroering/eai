@@ -3,6 +3,7 @@ set -euo pipefail
 
 # eai installer
 # curl -fsSL https://raw.githubusercontent.com/feliperbroering/eai/main/install.sh | bash
+# Windows: iwr https://raw.githubusercontent.com/feliperbroering/eai/main/install.ps1 -useb | iex
 
 REPO="feliperbroering/eai"
 INSTALL_DIR="${EAI_INSTALL_DIR:-$HOME/.local/bin}"
@@ -17,6 +18,9 @@ detect_asset_name() {
   case "$(uname -s)" in
     Darwin) os="darwin" ;;
     Linux)  os="linux" ;;
+    MINGW*|MSYS*|CYGWIN*)
+      err "Windows detected. Use PowerShell installer: iwr https://raw.githubusercontent.com/${REPO}/main/install.ps1 -useb | iex"
+      ;;
     *)      err "Unsupported OS: $(uname -s)" ;;
   esac
   case "$(uname -m)" in

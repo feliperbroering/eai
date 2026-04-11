@@ -38,18 +38,36 @@
 
 ## Quick Start
 
+### macOS / Linux
+
 ```bash
 # Install
 curl -fsSL https://raw.githubusercontent.com/feliperbroering/eai/main/install.sh | bash
-
-# Or via cargo
-cargo install --git https://github.com/feliperbroering/eai
 
 # Setup (30 seconds — picks a free provider for you)
 eai setup
 
 # Go
 eai "compress all PNGs in this directory"
+```
+
+### Windows (PowerShell)
+
+```powershell
+# Install
+iwr https://raw.githubusercontent.com/feliperbroering/eai/main/install.ps1 -UseBasicParsing | iex
+
+# Setup (30 seconds — picks a free provider for you)
+eai setup
+
+# Go
+eai "compress all PNGs in this directory"
+```
+
+### Alternative (all platforms)
+
+```bash
+cargo install --git https://github.com/feliperbroering/eai
 ```
 
 ## Usage
