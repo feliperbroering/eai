@@ -2,7 +2,9 @@
 $ErrorActionPreference = "Stop"
 
 $Repo = "feliperbroering/eai"
-$CargoBin = Join-Path $HOME ".cargo\bin"
+$AssetPattern = '^eai-windows-amd64(\.exe)?$'
+$InstallDir = if ($env:EAI_INSTALL_DIR) { $env:EAI_INSTALL_DIR } else { Join-Path $env:LOCALAPPDATA "eai\bin" }
+$BinaryPath = Join-Path $InstallDir "eai.exe"
 
 function Info([string]$Message) {
     Write-Host "▶ $Message" -ForegroundColor Cyan
@@ -17,38 +19,46 @@ function Fail([string]$Message) {
     exit 1
 }
 
-function Ensure-Cargo {
-    if (Get-Command cargo -ErrorAction SilentlyContinue) {
-        return
+function Ensure-InstallDir {
+    if (-not (Test-Path -LiteralPath $InstallDir)) {
+        New-Item -ItemType Directory -Path $InstallDir -Force | Out-Null
     }
-
-    Fail "cargo was not found. Install Rust first: https://rustup.rs"
 }
 
-function Ensure-CargoOnPath {
+function Add-ToPath {
     $pathParts = $env:Path -split ';'
-    if ($pathParts -contains $CargoBin) {
+    if ($pathParts -contains $InstallDir) {
         return
     }
 
     $userPath = [Environment]::GetEnvironmentVariable("Path", "User")
     if ([string]::IsNullOrWhiteSpace($userPath)) {
-        [Environment]::SetEnvironmentVariable("Path", $CargoBin, "User")
-    } elseif (($userPath -split ';') -notcontains $CargoBin) {
-        [Environment]::SetEnvironmentVariable("Path", "$userPath;$CargoBin", "User")
+        [Environment]::SetEnvironmentVariable("Path", $InstallDir, "User")
+    } elseif (($userPath -split ';') -notcontains $InstallDir) {
+        [Environment]::SetEnvironmentVariable("Path", "$userPath;$InstallDir", "User")
     }
 
-    Ok "Added $CargoBin to user PATH (open a new terminal)."
+    Ok "Added $InstallDir to user PATH (open a new terminal)."
 }
 
 Info "Installing eai for Windows..."
-Ensure-Cargo
+Info "Fetching latest release metadata..."
 
-Info "Running cargo install..."
-& cargo install --git "https://github.com/$Repo" --locked
-if ($LASTEXITCODE -ne 0) {
-    Fail "cargo install failed."
+$release = Invoke-RestMethod -Uri "https://api.github.com/repos/$Repo/releases/latest" -Headers @{ "User-Agent" = "eai-install-script" }
+$asset = $release.assets | Where-Object { $_.name -match $AssetPattern } | Select-Object -First 1
+if ($null -eq $asset) {
+    Fail "Could not find Windows release asset matching '$AssetPattern'."
 }
 
-Ensure-CargoOnPath
+Info "Version: $($release.tag_name)"
+Info "Downloading $($asset.name)..."
+Ensure-InstallDir
+Invoke-WebRequest -Uri $asset.browser_download_url -OutFile $BinaryPath
+
+if (-not (Test-Path -LiteralPath $BinaryPath)) {
+    Fail "Download failed: $BinaryPath was not created."
+}
+
+Add-ToPath
+Ok "Installed eai to $BinaryPath"
 Ok "Done! Run: eai setup"

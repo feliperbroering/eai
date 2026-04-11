@@ -34,18 +34,27 @@ jobs:
             os: ubuntu-latest
             artifact: eai-linux-amd64
             use_cross: true
+            binary: eai
           - target: aarch64-unknown-linux-musl
             os: ubuntu-latest
             artifact: eai-linux-arm64
             use_cross: true
+            binary: eai
           - target: x86_64-apple-darwin
             os: macos-latest
             artifact: eai-darwin-amd64
             use_cross: false
+            binary: eai
           - target: aarch64-apple-darwin
             os: macos-latest
             artifact: eai-darwin-arm64
             use_cross: false
+            binary: eai
+          - target: x86_64-pc-windows-msvc
+            os: windows-latest
+            artifact: eai-windows-amd64
+            use_cross: false
+            binary: eai.exe
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -64,11 +73,10 @@ jobs:
       - name: Build (cargo)
         if: "!matrix.use_cross"
         run: cargo build --release --target ${{ matrix.target }}
-      - run: cp target/${{ matrix.target }}/release/eai ${{ matrix.artifact }}
       - uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.artifact }}
-          path: ${{ matrix.artifact }}
+          path: target/${{ matrix.target }}/release/${{ matrix.binary }}
 
   upload-assets:
     needs: [release-please, build]
@@ -83,7 +91,8 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release upload ${{ needs.release-please.outputs.tag_name }} \
-            artifacts/eai-linux-amd64/eai-linux-amd64 \
-            artifacts/eai-linux-arm64/eai-linux-arm64 \
-            artifacts/eai-darwin-amd64/eai-darwin-amd64 \
-            artifacts/eai-darwin-arm64/eai-darwin-arm64
+            artifacts/eai-linux-amd64/eai#eai-linux-amd64 \
+            artifacts/eai-linux-arm64/eai#eai-linux-arm64 \
+            artifacts/eai-darwin-amd64/eai#eai-darwin-amd64 \
+            artifacts/eai-darwin-arm64/eai#eai-darwin-arm64 \
+            artifacts/eai-windows-amd64/eai.exe#eai-windows-amd64.exe
