@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.0](https://github.com/feliperbroering/eai/compare/v0.2.4...v0.3.0) (2026-04-11)
+
+
+### Features
+
+* **installer:** ship windows binary installer from releases ([cbb6773](https://github.com/feliperbroering/eai/commit/cbb6773c2ff70357281c81e3d15baaddcc780cf0))
+
 ## [0.2.4](https://github.com/feliperbroering/eai/compare/v0.2.3...v0.2.4) (2026-04-11)
 
 
