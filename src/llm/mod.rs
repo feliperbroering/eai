@@ -370,7 +370,9 @@ fn read_key_from_shell_profile(key: &str) -> Option<String> {
 fn windows_powershell_profiles(home: &std::path::Path) -> Vec<std::path::PathBuf> {
     let documents = home.join("Documents");
     vec![
-        documents.join("PowerShell").join("Microsoft.PowerShell_profile.ps1"),
+        documents
+            .join("PowerShell")
+            .join("Microsoft.PowerShell_profile.ps1"),
         documents
             .join("WindowsPowerShell")
             .join("Microsoft.PowerShell_profile.ps1"),

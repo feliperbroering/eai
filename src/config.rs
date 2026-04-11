@@ -1,6 +1,5 @@
 use std::{
-    env,
-    fs,
+    env, fs,
     path::{Path, PathBuf},
 };
 
@@ -248,7 +247,9 @@ pub fn history_path() -> Result<PathBuf> {
     if let Ok(override_dir) = env::var("EAI_DATA_DIR")
         && !override_dir.trim().is_empty()
     {
-        return Ok(PathBuf::from(override_dir).join("eai").join("history.jsonl"));
+        return Ok(PathBuf::from(override_dir)
+            .join("eai")
+            .join("history.jsonl"));
     }
     let base = dirs::data_local_dir().ok_or_else(|| anyhow!("failed to resolve data dir"))?;
     Ok(base.join("eai").join("history.jsonl"))
