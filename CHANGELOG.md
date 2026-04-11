@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.1](https://github.com/feliperbroering/eai/compare/v0.3.0...v0.3.1) (2026-04-11)
+
+
+### Bug Fixes
+
+* **release:** upload renamed artifacts reliably ([a2991bd](https://github.com/feliperbroering/eai/commit/a2991bdd1acb40279fc9c2afb5b5f3fb35d83d95))
+
 ## [0.3.0](https://github.com/feliperbroering/eai/compare/v0.2.4...v0.3.0) (2026-04-11)
 
 
