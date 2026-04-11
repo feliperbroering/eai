@@ -90,9 +90,15 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          cp artifacts/eai-linux-amd64/eai artifacts/eai-linux-amd64/eai-linux-amd64
+          cp artifacts/eai-linux-arm64/eai artifacts/eai-linux-arm64/eai-linux-arm64
+          cp artifacts/eai-darwin-amd64/eai artifacts/eai-darwin-amd64/eai-darwin-amd64
+          cp artifacts/eai-darwin-arm64/eai artifacts/eai-darwin-arm64/eai-darwin-arm64
+          cp artifacts/eai-windows-amd64/eai.exe artifacts/eai-windows-amd64/eai-windows-amd64.exe
+
           gh release upload ${{ needs.release-please.outputs.tag_name }} \
-            artifacts/eai-linux-amd64/eai#eai-linux-amd64 \
-            artifacts/eai-linux-arm64/eai#eai-linux-arm64 \
-            artifacts/eai-darwin-amd64/eai#eai-darwin-amd64 \
-            artifacts/eai-darwin-arm64/eai#eai-darwin-arm64 \
-            artifacts/eai-windows-amd64/eai.exe#eai-windows-amd64.exe
+            artifacts/eai-linux-amd64/eai-linux-amd64 \
+            artifacts/eai-linux-arm64/eai-linux-arm64 \
+            artifacts/eai-darwin-amd64/eai-darwin-amd64 \
+            artifacts/eai-darwin-arm64/eai-darwin-arm64 \
+            artifacts/eai-windows-amd64/eai-windows-amd64.exe
