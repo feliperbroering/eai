@@ -32,6 +32,14 @@ Execute Should Work In Native Shell
     Should Be Equal As Integers    ${result.rc}    0
     Should Contain    ${result.stdout}    E2E_EXEC_OK
 
+Windows NonUtf8 Output Should Not Crash
+    Run Keyword If    not ${IS_WINDOWS}    Pass Execution    Windows-only test.
+    ${env}=    Build Base Env
+    Set To Dictionary    ${env}    EAI_MOCK_COMMAND=ipconfig\n// windows output regression
+    ${result}=    Run Process    ${EAI_BIN}    --backend    claude-cli    --no-confirm    --shell    powershell    qual meu ip agora    env=${env}
+    Should Be Equal As Integers    ${result.rc}    0
+    Should Contain    ${result.stdout}    IPv4
+
 Explain Mode Should Return Explanation
     ${env}=    Build Base Env
     Set To Dictionary    ${env}    EAI_MOCK_EXPLAIN=Explains command from robot e2e mock.
