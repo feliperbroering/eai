@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.2](https://github.com/feliperbroering/eai/compare/v0.3.1...v0.3.2) (2026-04-12)
+
+
+### Bug Fixes
+
+* **installer:** resolve PowerShell parsing issue on PATH update ([2d46ffb](https://github.com/feliperbroering/eai/commit/2d46ffb468e84486d77ef57078ffdd5e9c1267fc))
+
 ## [0.3.1](https://github.com/feliperbroering/eai/compare/v0.3.0...v0.3.1) (2026-04-11)
 
 
