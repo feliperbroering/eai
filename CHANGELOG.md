@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.1](https://github.com/feliperbroering/eai/compare/v0.5.0...v0.5.1) (2026-04-12)
+
+
+### Bug Fixes
+
+* **windows:** sanitize command output before console write ([72c3a15](https://github.com/feliperbroering/eai/commit/72c3a1586b82d453c9a267f80047456b4bfb3c4a))
+
 ## [0.5.0](https://github.com/feliperbroering/eai/compare/v0.4.0...v0.5.0) (2026-04-12)
 
 
