@@ -372,7 +372,8 @@ where
         }
         captured.extend_from_slice(&buf[..n]);
 
-        for &byte in &buf[..n] {
+        let display = String::from_utf8_lossy(&buf[..n]);
+        for &byte in display.as_bytes() {
             if at_line_start {
                 writer.write_all(OUTPUT_INDENT).await?;
                 writer.write_all(prefix_bytes).await?;
