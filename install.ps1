@@ -7,15 +7,15 @@ $InstallDir = if ($env:EAI_INSTALL_DIR) { $env:EAI_INSTALL_DIR } else { Join-Pat
 $BinaryPath = Join-Path $InstallDir "eai.exe"
 
 function Info([string]$Message) {
-    Write-Host "▶ $Message" -ForegroundColor Cyan
+    Write-Host "[INFO] $Message" -ForegroundColor Cyan
 }
 
 function Ok([string]$Message) {
-    Write-Host "✓ $Message" -ForegroundColor Green
+    Write-Host "[OK] $Message" -ForegroundColor Green
 }
 
 function Fail([string]$Message) {
-    Write-Host "✗ $Message" -ForegroundColor Red
+    Write-Host "[ERROR] $Message" -ForegroundColor Red
     exit 1
 }
 
@@ -34,8 +34,10 @@ function Add-ToPath {
     $userPath = [Environment]::GetEnvironmentVariable("Path", "User")
     if ([string]::IsNullOrWhiteSpace($userPath)) {
         [Environment]::SetEnvironmentVariable("Path", $InstallDir, "User")
-    } elseif (($userPath -split ';') -notcontains $InstallDir) {
-        [Environment]::SetEnvironmentVariable("Path", "$userPath;$InstallDir", "User")
+    }
+    elseif (($userPath -split ';') -notcontains $InstallDir) {
+        $newUserPath = $userPath + ";" + $InstallDir
+        [Environment]::SetEnvironmentVariable("Path", $newUserPath, "User")
     }
 
     Ok "Added $InstallDir to user PATH (open a new terminal)."
