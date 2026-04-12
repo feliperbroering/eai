@@ -26,21 +26,28 @@ function Ensure-InstallDir {
 }
 
 function Add-ToPath {
-    $pathParts = $env:Path -split ';'
-    if ($pathParts -contains $InstallDir) {
-        return
-    }
-
     $userPath = [Environment]::GetEnvironmentVariable("Path", "User")
-    if ([string]::IsNullOrWhiteSpace($userPath)) {
-        [Environment]::SetEnvironmentVariable("Path", $InstallDir, "User")
-    }
-    elseif (($userPath -split ';') -notcontains $InstallDir) {
-        $newUserPath = $userPath + ";" + $InstallDir
-        [Environment]::SetEnvironmentVariable("Path", $newUserPath, "User")
+    $parts = @()
+    if (-not [string]::IsNullOrWhiteSpace($userPath)) {
+        $parts = $userPath -split ';' | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }
     }
 
-    Ok "Added $InstallDir to user PATH (open a new terminal)."
+    # Keep only one entry for the install dir and force it to the front,
+    # so older installs in other folders don't shadow the latest binary.
+    $filtered = $parts | Where-Object { $_ -ne $InstallDir }
+    $newUserPath = @($InstallDir) + $filtered
+    [Environment]::SetEnvironmentVariable("Path", ($newUserPath -join ';'), "User")
+
+    # Also update current session PATH so `eai` works immediately.
+    $sessionParts = $env:Path -split ';' | Where-Object { -not [string]::IsNullOrWhiteSpace($_) -and $_ -ne $InstallDir }
+    $env:Path = (@($InstallDir) + $sessionParts) -join ';'
+
+    $resolved = Get-Command eai -ErrorAction SilentlyContinue
+    if ($resolved -and $resolved.Source -ne $BinaryPath) {
+        Write-Host "[WARN] eai resolves to $($resolved.Source). Reopen terminal if needed." -ForegroundColor Yellow
+    }
+
+    Ok "Set $InstallDir as first entry in user PATH."
 }
 
 Info "Installing eai for Windows..."
