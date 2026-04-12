@@ -1,5 +1,27 @@
 # Changelog
 
+## [0.5.0](https://github.com/feliperbroering/eai/compare/v0.4.0...v0.5.0) (2026-04-12)
+
+
+### Features
+
+* initial release — natural language to shell commands ([7d8fcb2](https://github.com/feliperbroering/eai/commit/7d8fcb2fa9aea78d315473d13b2ad216da2d8a42))
+* **installer:** ship windows binary installer from releases ([cbb6773](https://github.com/feliperbroering/eai/commit/cbb6773c2ff70357281c81e3d15baaddcc780cf0))
+* tool discovery, Tavily search, setup UX improvements ([f5e499f](https://github.com/feliperbroering/eai/commit/f5e499f2ae95962f27979e91173b70bbe6a50ac2))
+
+
+### Bug Fixes
+
+* align install.sh asset names with release artifacts ([6ff16e1](https://github.com/feliperbroering/eai/commit/6ff16e147974923ada707fcbd61b38a7de1200de))
+* **ci:** apply rustfmt adjustments for windows changes ([9bda141](https://github.com/feliperbroering/eai/commit/9bda1417d4f5950657b844d410a7f97388ce1cad))
+* clippy print_literal warnings in setup.rs ([90c1446](https://github.com/feliperbroering/eai/commit/90c1446e945a34be009cc9371beb428d7409b4fc))
+* discovery UX improvements ([3da35fc](https://github.com/feliperbroering/eai/commit/3da35fcf0d289d47f1b20f4efb355dd8db6380bb))
+* indent command output and dim stderr in UI ([a011b50](https://github.com/feliperbroering/eai/commit/a011b50a667e3ccdacabf617c16b90a6196ec553))
+* **installer:** resolve PowerShell parsing issue on PATH update ([2d46ffb](https://github.com/feliperbroering/eai/commit/2d46ffb468e84486d77ef57078ffdd5e9c1267fc))
+* **release:** upload renamed artifacts reliably ([a2991bd](https://github.com/feliperbroering/eai/commit/a2991bdd1acb40279fc9c2afb5b5f3fb35d83d95))
+* static musl binaries for Linux + improved tool discovery ([36d3256](https://github.com/feliperbroering/eai/commit/36d3256718cfba571766487924b08de4f104c374))
+* **windows:** add native shell support and robust e2e coverage ([b138b42](https://github.com/feliperbroering/eai/commit/b138b429b4c7d2ca5aead69dbcb7eb44fa00ab2a))
+
 ## [0.4.0](https://github.com/feliperbroering/eai/compare/v0.3.2...v0.4.0) (2026-04-12)
 
 
