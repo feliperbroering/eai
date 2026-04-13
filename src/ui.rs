@@ -14,6 +14,10 @@ pub fn flush_stdin() {
     const TCIFLUSH: i32 = 1;
     unsafe { tcflush(0, TCIFLUSH) };
 }
+
+#[cfg(not(unix))]
+pub fn flush_stdin() {}
+
 use indicatif::{ProgressBar, ProgressDrawTarget, ProgressStyle};
 
 // ── brand ──────────────────────────────────────────────────────────────────
