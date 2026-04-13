@@ -20,7 +20,7 @@
 
 <p align="center">
   Describe what you want in plain English. Get the shell command. Confirm. Run.<br>
-  Single Rust binary. Free by default (Groq/Ollama). Works in any language.
+  Single Rust binary. Free by default (Gemini/Groq/Ollama). Works in any language.
 </p>
 
 ---
@@ -158,7 +158,7 @@ eai history --search docker
 2. eai detects CLI tools in your prompt and loads their docs (tldr/--help)
 3. If the tool isn't installed, eai discovers alternatives via web search, verifies them against package registries, and offers to install
 4. The LLM generates the command + a brief explanation
-5. You confirm, edit, refine, or search before running
+5. You confirm, edit (with placeholder values you can customize), refine, or search before running
 6. If it fails, the error goes back to the LLM — auto-retry up to 5x
 
 ## Providers
@@ -167,14 +167,15 @@ Run `eai setup` to connect your preferred backend:
 
 | Provider | Model | Cost |
 |----------|-------|------|
-| **Groq** ★ | Llama 3.3 70B | Free (14K req/day) |
+| **Gemini** ★ | Gemini 2.5 Flash Lite | Free (Google AI Studio) |
+| **Groq** | Llama 3.3 70B | Free (14K req/day) |
 | **OpenRouter** | GPT-4o, Claude, Gemini... | 1 key, all models |
 | **OpenAI** | gpt-4o-mini | Pay per use |
 | **Ollama** | qwen3:4b (local) | Free, no API key |
 | **Claude CLI** | Claude (via `claude` CLI) | Requires Claude CLI |
 | **Custom API** | GLM, Kimi, DeepSeek... | Any OpenAI-compatible |
 
-Override per-command: `-b groq`, `-b openai`, `-b ollama`, `-b claude-cli`.
+Override per-command: `-b gemini`, `-b groq`, `-b openai`, `-b ollama`, `-b claude-cli`.
 
 ## Web Search
 
@@ -193,8 +194,12 @@ eai can search the web for syntax lookups and tool discovery:
 
 ```toml
 [default]
-backend = "groq"
+backend = "gemini"
 confirm = true
+
+[gemini]
+api_key_env = "GEMINI_API_KEY"
+model = "gemini-2.5-flash-lite"
 
 [groq]
 api_key_env = "GROQ_API_KEY"
@@ -231,7 +236,7 @@ The suite uses a mocked `claude` CLI and validates end-to-end flows for:
 |---|---|---|---|---|
 | **Pipe context (stdin)** | ✓ | ✓ | ✓ | ✓ |
 | **Explain mode** | ✓ (`--wtf`) | ✗ | ✗ | partial |
-| **Free by default** | ✓ (Groq/Ollama) | ✗ (OpenAI) | ✗ (Needs API) | ✗ (OpenAI) |
+| **Free by default** | ✓ (Gemini/Groq/Ollama) | ✗ (OpenAI) | ✗ (Needs API) | ✗ (OpenAI) |
 | **Auto-retry on error** | ✓ (feeds stderr back) | ✗ | ✗ | ✗ |
 | **Web search** | ✓ (Tavily/DDG) | ✗ (plugins) | partial | ✗ (plugins) |
 | **Tool doc detection** | ✓ (auto tldr/--help) | ✗ | ✗ | ✗ |

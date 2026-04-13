@@ -63,6 +63,10 @@ pub async fn resolve_backend(
         return build_backend(http_client, config, backend, requested_model).await;
     }
 
+    if env_var(&config.gemini.api_key_env).is_some() {
+        return build_backend(http_client, config, BackendKind::Gemini, requested_model).await;
+    }
+
     if env_var(&config.groq.api_key_env).is_some() {
         return build_backend(http_client, config, BackendKind::Groq, requested_model).await;
     }
@@ -90,7 +94,8 @@ pub async fn resolve_backend(
     }
 
     bail!(
-        "no backend available; start Ollama, set {}, configure {}, or install Claude CLI",
+        "no backend available; start Ollama, set {}/{}/{}, or install Claude CLI",
+        config.gemini.api_key_env,
         config.groq.api_key_env,
         config.openai.api_key_env
     )
@@ -118,6 +123,13 @@ async fn build_backend(
             &config.groq.api_key_env,
             &config.groq.base_url,
             requested_model.unwrap_or(&config.groq.model),
+        )?,
+        BackendKind::Gemini => build_openai_compat(
+            "gemini",
+            http_client,
+            &config.gemini.api_key_env,
+            &config.gemini.base_url,
+            requested_model.unwrap_or(&config.gemini.model),
         )?,
         BackendKind::Openai => build_openai_compat(
             "openai",
@@ -428,6 +440,7 @@ fn build_system_prompt(request: &CommandRequest) -> String {
         ),
         "- Assume tools mentioned by name are installed.".to_string(),
         "- Prefer safe inspection commands over destructive ones unless explicitly asked.".to_string(),
+        "- NEVER generate interactive commands that prompt for user input (e.g. read, select, vared). Instead, use placeholder values like YOUR_VAR_NAME or YOUR_VALUE that the user can edit before running.".to_string(),
     ];
 
     if request.tool_docs.is_some() {

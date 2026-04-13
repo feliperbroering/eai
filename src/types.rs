@@ -9,6 +9,7 @@ pub enum BackendKind {
     Ollama,
     Groq,
     Openai,
+    Gemini,
     ClaudeCli,
 }
 
@@ -18,6 +19,7 @@ impl fmt::Display for BackendKind {
             Self::Ollama => "ollama",
             Self::Groq => "groq",
             Self::Openai => "openai",
+            Self::Gemini => "gemini",
             Self::ClaudeCli => "claude-cli",
         };
         f.write_str(name)

@@ -26,6 +26,7 @@ struct Provider {
 
 #[derive(Clone, Copy)]
 enum ConfigTarget {
+    Gemini,
     Groq,
     Openai,
     Ollama,
@@ -34,8 +35,23 @@ enum ConfigTarget {
 
 static PROVIDERS: &[Provider] = &[
     Provider {
-        name: "Groq",
+        name: "Gemini",
         tag: "★ free · fast · recommended",
+        base_url: "https://generativelanguage.googleapis.com/v1beta/openai",
+        default_model: "gemini-2.5-flash-lite",
+        api_key_env: "GEMINI_API_KEY",
+        signup_url: "https://aistudio.google.com/apikey",
+        steps: &[
+            "Open  https://aistudio.google.com/apikey",
+            "Sign in with your Google account",
+            "Click  Create API Key",
+            "Copy the key and paste it below",
+        ],
+        target: ConfigTarget::Gemini,
+    },
+    Provider {
+        name: "Groq",
+        tag: "free · fast",
         base_url: "https://api.groq.com/openai/v1",
         default_model: "llama-3.3-70b-versatile",
         api_key_env: "GROQ_API_KEY",
@@ -112,7 +128,7 @@ pub fn needs_setup() -> bool {
 
     let has = |k: &str| env::var(k).ok().filter(|v| !v.trim().is_empty()).is_some();
 
-    if has("GROQ_API_KEY") || has("OPENAI_API_KEY") || has("OPENROUTER_API_KEY") {
+    if has("GEMINI_API_KEY") || has("GROQ_API_KEY") || has("OPENAI_API_KEY") || has("OPENROUTER_API_KEY") {
         return false;
     }
     if which::which("ollama").is_ok() || which::which("claude").is_ok() {
@@ -381,6 +397,12 @@ fn offer_tavily_setup(config: &mut AppConfig) -> Result<()> {
 
 fn apply_provider_config(config: &mut AppConfig, provider: &Provider) {
     match provider.target {
+        ConfigTarget::Gemini => {
+            config.default.backend = BackendPreference::Gemini;
+            config.gemini.api_key_env = provider.api_key_env.to_string();
+            config.gemini.model = provider.default_model.to_string();
+            config.gemini.base_url = provider.base_url.to_string();
+        }
         ConfigTarget::Groq => {
             config.default.backend = BackendPreference::Groq;
             config.groq.api_key_env = provider.api_key_env.to_string();

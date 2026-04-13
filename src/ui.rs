@@ -1,6 +1,19 @@
 use std::time::Duration;
 
 use console::{Term, measure_text_width, style};
+
+// ── terminal input flush ──────────────────────────────────────────────────
+
+/// Flush any pending bytes in the terminal input buffer (e.g. leftover Enter
+/// from dialoguer). Prevents key-presses from leaking into the next read_key().
+#[cfg(unix)]
+pub fn flush_stdin() {
+    unsafe extern "C" {
+        fn tcflush(fd: i32, action: i32) -> i32;
+    }
+    const TCIFLUSH: i32 = 1;
+    unsafe { tcflush(0, TCIFLUSH) };
+}
 use indicatif::{ProgressBar, ProgressDrawTarget, ProgressStyle};
 
 // ── brand ──────────────────────────────────────────────────────────────────

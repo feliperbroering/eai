@@ -22,6 +22,9 @@ pub struct AppConfig {
     #[serde(default)]
     pub openai: OpenAiConfig,
 
+    #[serde(default)]
+    pub gemini: GeminiConfig,
+
     #[serde(default, rename = "claude-cli")]
     pub claude_cli: ClaudeCliConfig,
 
@@ -91,6 +94,7 @@ pub enum BackendPreference {
     Ollama,
     Groq,
     Openai,
+    Gemini,
     ClaudeCli,
 }
 
@@ -101,6 +105,7 @@ impl BackendPreference {
             Self::Ollama => Some(BackendKind::Ollama),
             Self::Groq => Some(BackendKind::Groq),
             Self::Openai => Some(BackendKind::Openai),
+            Self::Gemini => Some(BackendKind::Gemini),
             Self::ClaudeCli => Some(BackendKind::ClaudeCli),
         }
     }
@@ -198,6 +203,40 @@ fn default_openai_base_url() -> String {
 
 fn default_openai_model() -> String {
     "gpt-4o-mini".to_string()
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GeminiConfig {
+    #[serde(default = "default_gemini_api_key_env")]
+    pub api_key_env: String,
+
+    #[serde(default = "default_gemini_base_url")]
+    pub base_url: String,
+
+    #[serde(default = "default_gemini_model")]
+    pub model: String,
+}
+
+impl Default for GeminiConfig {
+    fn default() -> Self {
+        Self {
+            api_key_env: default_gemini_api_key_env(),
+            base_url: default_gemini_base_url(),
+            model: default_gemini_model(),
+        }
+    }
+}
+
+fn default_gemini_api_key_env() -> String {
+    "GEMINI_API_KEY".to_string()
+}
+
+fn default_gemini_base_url() -> String {
+    "https://generativelanguage.googleapis.com/v1beta/openai".to_string()
+}
+
+fn default_gemini_model() -> String {
+    "gemini-2.5-flash-lite".to_string()
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]

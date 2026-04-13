@@ -134,6 +134,7 @@ async fn run_prompt(cli: Cli, config: AppConfig) -> Result<()> {
                     ui::PreAction::Edit => {
                         generated.command = ui::prompt_text("Edit command", &generated.command)?;
                         generated.explanation = None;
+                        ui::flush_stdin();
                         ui::print_command(&generated.command, None);
                     }
                     ui::PreAction::Refine => {
