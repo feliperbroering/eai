@@ -25,15 +25,26 @@
 
 ---
 
-```
-  ╭───────────────────────────────────────────────────────────────────╮
-  │   ❯ docker ps --format "table {{.Names}}\t{{.Status}}"           │
-  ╰───────────────────────────────────────────────────────────────────╯
-  // lists containers showing name and status columns
+```bash
+# ffmpeg (time slice + codec flags)
+eai "extract audio from video.mp4 as mp3 320kbps, only from 1:30 to 3:45"
+▶ ffmpeg -i video.mp4 -ss 00:01:30 -to 00:03:45 -vn -acodec libmp3lame -b:a 320k output.mp3
 
-  ╭──────────────────────────────────────────────────────────────────────╮
-  │  ● run ↵  │  ● edit e  │  ● refine r  │  ● search s  │  ● cancel ^C  │
-  ╰──────────────────────────────────────────────────────────────────────╯
+# find + sed across recursive .env files
+eai "replace all occurrences of localhost:3000 with api.prod.com in every .env file recursively"
+▶ find . -name ".env" -exec sed -i '' 's/localhost:3000/api.prod.com/g' {} +
+
+# rsync with excludes, compression, and permissions
+eai "sync my local ./dist to server 192.168.1.50:/var/www excluding node_modules and .git, with compression, preserving permissions"
+▶ rsync -avz --exclude='node_modules' --exclude='.git' ./dist/ user@192.168.1.50:/var/www/
+
+# iptables NAT redirect
+eai "redirect all incoming traffic on port 80 to port 3000"
+▶ sudo iptables -t nat -A PREROUTING -p tcp --dport 80 -j REDIRECT --to-port 3000
+
+# git log analysis with shell pipeline
+eai "show who committed the most in the last 7 days"
+▶ git log --since="7 days ago" --format="%an" | sort | uniq -c | sort -rn
 ```
 
 ## Quick Start
