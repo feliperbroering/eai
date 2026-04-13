@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.6.0](https://github.com/feliperbroering/eai/compare/v0.5.2...v0.6.0) (2026-04-13)
+
+
+### Features
+
+* auto-update detection with interactive upgrade prompt ([cadaf01](https://github.com/feliperbroering/eai/commit/cadaf01964f3f554ea2f6d95c915c483002bef9f))
+
+
+### Bug Fixes
+
+* remove useless format! to satisfy clippy ([83411b4](https://github.com/feliperbroering/eai/commit/83411b4b889cd7d74b0d0662970c1a6609cba6ea))
+
 ## [0.5.2](https://github.com/feliperbroering/eai/compare/v0.5.1...v0.5.2) (2026-04-12)
 
 
