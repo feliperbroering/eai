@@ -128,7 +128,11 @@ pub fn needs_setup() -> bool {
 
     let has = |k: &str| env::var(k).ok().filter(|v| !v.trim().is_empty()).is_some();
 
-    if has("GEMINI_API_KEY") || has("GROQ_API_KEY") || has("OPENAI_API_KEY") || has("OPENROUTER_API_KEY") {
+    if has("GEMINI_API_KEY")
+        || has("GROQ_API_KEY")
+        || has("OPENAI_API_KEY")
+        || has("OPENROUTER_API_KEY")
+    {
         return false;
     }
     if which::which("ollama").is_ok() || which::which("claude").is_ok() {
