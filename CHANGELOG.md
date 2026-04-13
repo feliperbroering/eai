@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.7.0](https://github.com/feliperbroering/eai/compare/v0.6.0...v0.7.0) (2026-04-13)
+
+
+### Features
+
+* add Gemini backend, fix edit-then-run input leak, block interactive commands ([555da84](https://github.com/feliperbroering/eai/commit/555da84ccf598c00b42cd7e1b58aba009da057fe))
+
+
+### Bug Fixes
+
+* add Windows no-op for flush_stdin to fix cross-platform build ([1f455e0](https://github.com/feliperbroering/eai/commit/1f455e0a0c170f09e3e016d8d6470d92f68b8baf))
+
 ## [0.6.0](https://github.com/feliperbroering/eai/compare/v0.5.2...v0.6.0) (2026-04-13)
 
 
