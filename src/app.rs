@@ -490,9 +490,9 @@ async fn check_and_prompt_update(handle: tokio::task::JoinHandle<Option<String>>
     }
 
     let Some((program, args)) = update::install_command() else {
-        ui::status_warn(&format!(
-            "download the latest version at https://github.com/feliperbroering/eai/releases/latest"
-        ));
+        ui::status_warn(
+            "download the latest version at https://github.com/feliperbroering/eai/releases/latest",
+        );
         return;
     };
 
