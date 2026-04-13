@@ -423,7 +423,7 @@ enum ValidationResult {
 
 async fn validate_key(key: &str, base_url: &str, model: &str) -> ValidationResult {
     let client = match Client::builder()
-        .user_agent("eai/0.1.0")
+        .user_agent(format!("eai/{}", env!("CARGO_PKG_VERSION")))
         .timeout(std::time::Duration::from_secs(10))
         .build()
     {

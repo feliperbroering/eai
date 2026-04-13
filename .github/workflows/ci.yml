@@ -23,6 +23,15 @@ jobs:
       - run: cargo test
       - run: cargo build --release
 
+  check-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo test
+      - run: cargo build --release
+
   build:
     needs: check
     strategy:
@@ -39,6 +48,12 @@ jobs:
             use_cross: false
           - target: aarch64-apple-darwin
             os: macos-latest
+            use_cross: false
+          - target: x86_64-pc-windows-msvc
+            os: windows-latest
+            use_cross: false
+          - target: aarch64-pc-windows-msvc
+            os: windows-latest
             use_cross: false
     runs-on: ${{ matrix.os }}
     steps:
@@ -61,4 +76,4 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: eai-${{ matrix.target }}
-          path: target/${{ matrix.target }}/release/eai
+          path: target/${{ matrix.target }}/release/eai${{ contains(matrix.target, 'windows') && '.exe' || '' }}

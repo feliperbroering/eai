@@ -8,6 +8,7 @@ mod setup;
 mod tool_context;
 mod types;
 mod ui;
+mod update;
 
 use anyhow::Result;
 use clap::Parser;

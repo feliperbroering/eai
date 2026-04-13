@@ -14,7 +14,7 @@ use crate::{
     history,
     llm::{self, Backend},
     search::{self, SearchResults},
-    setup, tool_context,
+    setup, tool_context, update,
     types::{CommandRequest, ExecutionResult, GeneratedCommand, HistoryEntry, OsKind, ShellKind},
     ui,
 };
@@ -49,6 +49,13 @@ pub async fn run(cli: Cli) -> Result<()> {
 
 async fn run_prompt(cli: Cli, config: AppConfig) -> Result<()> {
     let stdin_data = read_stdin_if_piped().await;
+    let http_client = Client::builder()
+        .user_agent(format!("eai/{}", env!("CARGO_PKG_VERSION")))
+        .build()?;
+    let update_check = tokio::spawn({
+        let client = http_client.clone();
+        async move { update::check(&client).await }
+    });
 
     ui::banner();
 
@@ -63,7 +70,6 @@ async fn run_prompt(cli: Cli, config: AppConfig) -> Result<()> {
         .or(config.default.shell)
         .unwrap_or_else(ShellKind::detect);
     let os = OsKind::detect();
-    let http_client = Client::builder().user_agent("eai/0.1.0").build()?;
     let backend = llm::resolve_backend(
         http_client.clone(),
         &config,
@@ -111,6 +117,7 @@ async fn run_prompt(cli: Cli, config: AppConfig) -> Result<()> {
 
     if cli.dry {
         ui::print_command(&generated.command, generated.explanation.as_deref());
+        check_and_prompt_update(update_check).await;
         return Ok(());
     }
 
@@ -183,6 +190,7 @@ async fn run_prompt(cli: Cli, config: AppConfig) -> Result<()> {
         })?;
 
         if execution.is_success() && !execution.is_empty() {
+            check_and_prompt_update(update_check).await;
             return Ok(());
         }
 
@@ -461,6 +469,48 @@ async fn run_explain(backend: &Backend, command: &str) -> Result<()> {
 
     ui::print_explanation(&explanation);
     Ok(())
+}
+
+async fn check_and_prompt_update(
+    handle: tokio::task::JoinHandle<Option<String>>,
+) {
+    let latest = match handle.await {
+        Ok(Some(v)) => v,
+        _ => return,
+    };
+
+    if !std::io::stderr().is_terminal() {
+        return;
+    }
+
+    let Ok(wants_update) = update::prompt_update(&latest) else {
+        return;
+    };
+
+    if !wants_update {
+        return;
+    }
+
+    let Some((program, args)) = update::install_command() else {
+        ui::status_warn(&format!(
+            "download the latest version at https://github.com/feliperbroering/eai/releases/latest"
+        ));
+        return;
+    };
+
+    eprintln!();
+    let status = tokio::process::Command::new(program)
+        .args(&args)
+        .stdin(std::process::Stdio::inherit())
+        .stdout(std::process::Stdio::inherit())
+        .stderr(std::process::Stdio::inherit())
+        .status()
+        .await;
+
+    match status {
+        Ok(s) if s.success() => ui::print_update_success(&latest),
+        _ => ui::status_warn("update failed — try manually: curl -fsSL https://raw.githubusercontent.com/feliperbroering/eai/main/install.sh | bash"),
+    }
 }
 
 async fn read_stdin_if_piped() -> Option<String> {

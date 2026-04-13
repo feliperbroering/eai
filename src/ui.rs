@@ -601,6 +601,30 @@ pub fn prompt_tool_install(count: usize) -> anyhow::Result<InstallAction> {
     }
 }
 
+// ── update notification ───────────────────────────────────────────────────
+
+pub fn print_update_available(current: &str, latest: &str) {
+    eprintln!(
+        "  {} {}  {} → {}",
+        fg_bold("⬆", &Rgb::GREEN),
+        style("new version available!").white().bold(),
+        style(current).dim(),
+        fg_bold(latest, &Rgb::GREEN),
+    );
+    eprintln!(
+        "  {}",
+        fg("  update now? (Y/n)", &Rgb::DIM),
+    );
+}
+
+pub fn print_update_success(version: &str) {
+    eprintln!(
+        "  {} {}",
+        style("✓").green().bold(),
+        style(format!("updated to {version}!")).dim(),
+    );
+}
+
 // ── input prompts ──────────────────────────────────────────────────────────
 
 pub fn prompt_text(prompt: &str, initial: &str) -> anyhow::Result<String> {

@@ -55,6 +55,11 @@ jobs:
             artifact: eai-windows-amd64
             use_cross: false
             binary: eai.exe
+          - target: aarch64-pc-windows-msvc
+            os: windows-latest
+            artifact: eai-windows-arm64
+            use_cross: false
+            binary: eai.exe
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -95,10 +100,12 @@ jobs:
           cp artifacts/eai-darwin-amd64/eai artifacts/eai-darwin-amd64/eai-darwin-amd64
           cp artifacts/eai-darwin-arm64/eai artifacts/eai-darwin-arm64/eai-darwin-arm64
           cp artifacts/eai-windows-amd64/eai.exe artifacts/eai-windows-amd64/eai-windows-amd64.exe
+          cp artifacts/eai-windows-arm64/eai.exe artifacts/eai-windows-arm64/eai-windows-arm64.exe
 
           gh release upload ${{ needs.release-please.outputs.tag_name }} \
             artifacts/eai-linux-amd64/eai-linux-amd64 \
             artifacts/eai-linux-arm64/eai-linux-arm64 \
             artifacts/eai-darwin-amd64/eai-darwin-amd64 \
             artifacts/eai-darwin-arm64/eai-darwin-arm64 \
-            artifacts/eai-windows-amd64/eai-windows-amd64.exe
+            artifacts/eai-windows-amd64/eai-windows-amd64.exe \
+            artifacts/eai-windows-arm64/eai-windows-arm64.exe
