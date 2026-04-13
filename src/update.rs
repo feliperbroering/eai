@@ -118,7 +118,10 @@ pub fn install_command() -> Option<(&'static str, Vec<&'static str>)> {
     if cfg!(target_os = "macos") || cfg!(target_os = "linux") {
         Some((
             "bash",
-            vec!["-c", "curl -fsSL https://raw.githubusercontent.com/feliperbroering/eai/main/install.sh | bash"],
+            vec![
+                "-c",
+                "curl -fsSL https://raw.githubusercontent.com/feliperbroering/eai/main/install.sh | bash",
+            ],
         ))
     } else {
         // Windows: no reliable auto-update — guide user to GitHub releases

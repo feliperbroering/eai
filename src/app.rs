@@ -14,9 +14,9 @@ use crate::{
     history,
     llm::{self, Backend},
     search::{self, SearchResults},
-    setup, tool_context, update,
+    setup, tool_context,
     types::{CommandRequest, ExecutionResult, GeneratedCommand, HistoryEntry, OsKind, ShellKind},
-    ui,
+    ui, update,
 };
 
 const MAX_ITERATIONS: usize = 5;
@@ -471,9 +471,7 @@ async fn run_explain(backend: &Backend, command: &str) -> Result<()> {
     Ok(())
 }
 
-async fn check_and_prompt_update(
-    handle: tokio::task::JoinHandle<Option<String>>,
-) {
+async fn check_and_prompt_update(handle: tokio::task::JoinHandle<Option<String>>) {
     let latest = match handle.await {
         Ok(Some(v)) => v,
         _ => return,
@@ -509,7 +507,9 @@ async fn check_and_prompt_update(
 
     match status {
         Ok(s) if s.success() => ui::print_update_success(&latest),
-        _ => ui::status_warn("update failed — try manually: curl -fsSL https://raw.githubusercontent.com/feliperbroering/eai/main/install.sh | bash"),
+        _ => ui::status_warn(
+            "update failed — try manually: curl -fsSL https://raw.githubusercontent.com/feliperbroering/eai/main/install.sh | bash",
+        ),
     }
 }
 

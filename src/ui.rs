@@ -611,10 +611,7 @@ pub fn print_update_available(current: &str, latest: &str) {
         style(current).dim(),
         fg_bold(latest, &Rgb::GREEN),
     );
-    eprintln!(
-        "  {}",
-        fg("  update now? (Y/n)", &Rgb::DIM),
-    );
+    eprintln!("  {}", fg("  update now? (Y/n)", &Rgb::DIM),);
 }
 
 pub fn print_update_success(version: &str) {
