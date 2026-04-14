@@ -102,10 +102,26 @@ jobs:
           cp artifacts/eai-windows-amd64/eai.exe artifacts/eai-windows-amd64/eai-windows-amd64.exe
           cp artifacts/eai-windows-arm64/eai.exe artifacts/eai-windows-arm64/eai-windows-arm64.exe
 
+          cd artifacts/eai-windows-amd64 && zip eai-windows-amd64.zip eai-windows-amd64.exe && cd ../..
+          cd artifacts/eai-windows-arm64 && zip eai-windows-arm64.zip eai-windows-arm64.exe && cd ../..
+
           gh release upload ${{ needs.release-please.outputs.tag_name }} \
             artifacts/eai-linux-amd64/eai-linux-amd64 \
             artifacts/eai-linux-arm64/eai-linux-arm64 \
             artifacts/eai-darwin-amd64/eai-darwin-amd64 \
             artifacts/eai-darwin-arm64/eai-darwin-arm64 \
             artifacts/eai-windows-amd64/eai-windows-amd64.exe \
-            artifacts/eai-windows-arm64/eai-windows-arm64.exe
+            artifacts/eai-windows-arm64/eai-windows-arm64.exe \
+            artifacts/eai-windows-amd64/eai-windows-amd64.zip \
+            artifacts/eai-windows-arm64/eai-windows-arm64.zip
+
+  winget:
+    needs: [release-please, upload-assets]
+    runs-on: windows-latest
+    steps:
+      - uses: vedantmgoyal9/winget-releaser@v2
+        with:
+          identifier: feliperbroering.eai
+          installers-regex: eai-windows-.*\.zip$
+          token: ${{ secrets.WINGET_TOKEN }}
+          version: ${{ needs.release-please.outputs.tag_name }}

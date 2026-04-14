@@ -9,7 +9,7 @@ use tokio::process::Command;
 use console::style;
 
 use crate::{
-    cli::{Cli, Commands},
+    cli::{self, Cli, Commands},
     config::{AppConfig, SearchEngine},
     history,
     llm::{self, Backend},
@@ -30,7 +30,8 @@ pub async fn run(cli: Cli) -> Result<()> {
         Some(Commands::History { search, limit }) => show_history(search.as_deref(), limit),
         None => {
             if cli.prompt.is_empty() {
-                bail!("prompt is required — try: eai list files modified today");
+                cli::Cli::print_help();
+                return Ok(());
             }
 
             let config = if setup::needs_setup() {

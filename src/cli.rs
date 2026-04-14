@@ -1,4 +1,4 @@
-use clap::{Parser, Subcommand};
+use clap::{CommandFactory, Parser, Subcommand};
 
 use crate::types::{BackendKind, ShellKind};
 
@@ -39,6 +39,12 @@ pub struct Cli {
 
     #[arg(value_name = "PROMPT", num_args = 1.., allow_hyphen_values = true)]
     pub prompt: Vec<String>,
+}
+
+impl Cli {
+    pub fn print_help() {
+        let _ = Self::command().print_help();
+    }
 }
 
 #[derive(Debug, Subcommand)]
