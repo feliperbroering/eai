@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.8.0](https://github.com/feliperbroering/eai/compare/v0.7.0...v0.8.0) (2026-04-14)
+
+
+### Features
+
+* add winget support and show help on empty prompt ([e52928c](https://github.com/feliperbroering/eai/commit/e52928cdcc3011b7cccd7f41a1d3f4077437f348))
+
 ## [0.7.0](https://github.com/feliperbroering/eai/compare/v0.6.0...v0.7.0) (2026-04-13)
 
 
