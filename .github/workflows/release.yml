@@ -118,6 +118,7 @@ jobs:
   winget:
     needs: [release-please, upload-assets]
     runs-on: windows-latest
+    continue-on-error: true
     steps:
       - uses: vedantmgoyal9/winget-releaser@v2
         with:
