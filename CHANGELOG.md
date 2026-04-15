@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.13.0](https://github.com/feliperbroering/eai/compare/v0.12.0...v0.13.0) (2026-04-15)
+
+
+### Features
+
+* add clear-cache subcommand, comprehensive README, and improved --help descriptions ([2fb1d0d](https://github.com/feliperbroering/eai/commit/2fb1d0d778e215724d74c6caf0c9e6cecbeb0dc0))
+
 ## [0.12.0](https://github.com/feliperbroering/eai/compare/v0.11.0...v0.12.0) (2026-04-15)
 
 
