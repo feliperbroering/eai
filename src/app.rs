@@ -29,7 +29,8 @@ pub async fn run(cli: Cli) -> Result<()> {
         Some(Commands::Config) => open_config().await,
         Some(Commands::History { search, limit }) => show_history(search.as_deref(), limit),
         None => {
-            if cli.prompt.is_empty() {
+            let has_prompt = cli.prompt.iter().any(|s| !s.trim().is_empty());
+            if !has_prompt {
                 cli::Cli::print_help();
                 return Ok(());
             }

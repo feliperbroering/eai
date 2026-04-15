@@ -188,7 +188,8 @@ pub fn print_command(command: &str, explanation: Option<&str>) {
     let inner = width + pad * 2;
     let total_box_width = inner + 4;
 
-    let term_width = Term::stderr().size().1 as usize;
+    let raw_width = Term::stderr().size().1 as usize;
+    let term_width = if raw_width == 0 { 120 } else { raw_width };
     let use_box = total_box_width <= term_width;
 
     let styled_cmd = format!(
@@ -393,7 +394,8 @@ pub fn prompt_before_execution(
     let width = measure_text_width(&label);
     let pad = 3;
     let total_box_width = width + pad * 2 + 4;
-    let term_width = Term::stderr().size().1 as usize;
+    let raw_width = Term::stderr().size().1 as usize;
+    let term_width = if raw_width == 0 { 120 } else { raw_width };
     let use_box = total_box_width <= term_width;
 
     let box_lines = if use_box { 3 } else { 1 };
