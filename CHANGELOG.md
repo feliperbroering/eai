@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.9.0](https://github.com/feliperbroering/eai/compare/v0.8.1...v0.9.0) (2026-04-15)
+
+
+### Features
+
+* add homebrew tap publishing ([8fa308c](https://github.com/feliperbroering/eai/commit/8fa308cd57c6ccf743ab3a05ae1baecc0fb5b569))
+
 ## [0.8.1](https://github.com/feliperbroering/eai/compare/v0.8.0...v0.8.1) (2026-04-14)
 
 
