@@ -1,0 +1,17 @@
+This file lists third-party content bundled in the eai binary.
+
+──────────────────────────────────────────────────────────────────
+
+tldr-pages
+  https://github.com/tldr-pages/tldr
+
+  Copyright © 2014–present the tldr-pages team and contributors.
+
+  Licensed under the Creative Commons Attribution 4.0 International
+  License (CC-BY 4.0).
+  https://creativecommons.org/licenses/by/4.0/
+
+  eai embeds a compressed index of the tldr-pages English documentation
+  (common, osx, linux platforms) to provide grounding context for LLM
+  command generation. The content is used to improve accuracy and reduce
+  hallucination when generating shell commands.

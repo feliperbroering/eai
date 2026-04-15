@@ -1,4 +1,4 @@
-use std::{env, process::Stdio, time::Duration};
+use std::{process::Stdio, time::Duration};
 
 use anyhow::{Result, bail};
 use chrono::Utc;
@@ -7,7 +7,7 @@ use serde::Deserialize;
 use tokio::{process::Command, time::timeout};
 use which::which;
 
-use crate::{config::SearchEngine, llm::Backend, search, ui};
+use crate::{config::SearchEngine, llm::Backend, search, tldr, ui};
 
 pub struct ToolContext {
     pub tool_docs: Option<String>,
@@ -87,6 +87,10 @@ pub async fn gather(
                     ui::status_ok(&format!("Found {label}"));
                 }
             }
+        } else if let Some(tldr_doc) = tldr::lookup(tool) {
+            ui::status_ok(&format!("Loaded {tool} docs from embedded tldr"));
+            sections.push(format!("### {tool} (not installed — reference only)\n{tldr_doc}"));
+            missing.push(tool.to_string());
         } else {
             missing.push(tool.to_string());
         }
@@ -937,62 +941,24 @@ fn find_version_number(s: &str) -> Option<String> {
     None
 }
 
-// ── tldr ────────────────────────────────────────────────────────────────────
+// ── doc resolution: embedded tldr → --help ──────────────────────────────────
 
-async fn ensure_tldr() {
-    if which("tldr").is_ok() {
-        return;
-    }
+async fn get_tool_docs(tool: &str) -> Option<(String, String)> {
+    let tldr_docs = tldr::lookup(tool);
+    let help_docs = fetch_help_output(tool).await;
 
-    let sp = ui::spinner("Installing tldr...");
-
-    let status = match env::consts::OS {
-        "macos" => Command::new("brew")
-            .args(["install", "tldr"])
-            .stdout(std::process::Stdio::null())
-            .stderr(std::process::Stdio::null())
-            .status()
-            .await
-            .ok(),
-        _ => Command::new("cargo")
-            .args(["install", "tealdeer"])
-            .stdout(std::process::Stdio::null())
-            .stderr(std::process::Stdio::null())
-            .status()
-            .await
-            .ok(),
-    };
-
-    sp.finish_and_clear();
-
-    if status.map(|s| s.success()).unwrap_or(false) {
-        let _ = Command::new("tldr").arg("--update").status().await;
-        ui::status_ok("Installed tldr");
+    match (tldr_docs, help_docs) {
+        (Some(t), Some(h)) => {
+            let combined = format!("{t}\n---\n{h}");
+            Some(("tldr+help".into(), truncate(combined, 4000)))
+        }
+        (Some(t), None) => Some(("tldr".into(), truncate(t, 3000))),
+        (None, Some(h)) => Some(("--help".into(), truncate(h, 3000))),
+        (None, None) => None,
     }
 }
 
-// ── doc resolution: tldr → --help ───────────────────────────────────────────
-
-async fn get_tool_docs(tool: &str) -> Option<(String, String)> {
-    ensure_tldr().await;
-
-    // 1. tldr (concise, community-curated)
-    if let Ok(Ok(output)) = timeout(
-        Duration::from_secs(15),
-        Command::new("tldr")
-            .args(["--color", "never", tool])
-            .output(),
-    )
-    .await
-        && output.status.success()
-    {
-        let clean = strip_ansi(&String::from_utf8_lossy(&output.stdout));
-        if !clean.trim().is_empty() {
-            return Some(("tldr".into(), truncate(clean, 3000)));
-        }
-    }
-
-    // 2. --help (local, always up to date)
+async fn fetch_help_output(tool: &str) -> Option<String> {
     let output = timeout(
         Duration::from_secs(15),
         Command::new(tool)
@@ -1016,7 +982,7 @@ async fn get_tool_docs(tool: &str) -> Option<(String, String)> {
         return None;
     }
 
-    Some(("--help".into(), truncate(clean, 3000)))
+    Some(clean)
 }
 
 // ── help text cleanup ───────────────────────────────────────────────────────

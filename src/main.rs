@@ -5,6 +5,7 @@ mod history;
 mod llm;
 mod search;
 mod setup;
+mod tldr;
 mod tool_context;
 mod types;
 mod ui;

@@ -2,10 +2,18 @@ use clap::{CommandFactory, Parser, Subcommand};
 
 use crate::types::{BackendKind, ShellKind};
 
+fn long_version() -> &'static str {
+    concat!(
+        env!("CARGO_PKG_VERSION"),
+        "\nEmbedded docs: tldr-pages (CC-BY 4.0) — https://github.com/tldr-pages/tldr"
+    )
+}
+
 #[derive(Debug, Parser)]
 #[command(
     name = "eai",
     version,
+    long_version = long_version(),
     about = "E ai? don't memorize 1000 flags — just prompt it.",
     trailing_var_arg = true
 )]

@@ -16,6 +16,7 @@ src/
   ui.rs            — all terminal rendering: banner, gradient box, action bar, spinners, tool suggestions
   types.rs         — shared types: BackendKind, ShellKind, CommandRequest, GeneratedCommand
   tool_context.rs  — tool detection, discovery, package registry verification, install flow
+  tldr.rs          — embedded tldr-pages lookup (7000+ commands, zstd-compressed, O(1) HashMap)
   search.rs        — web search: Tavily (preferred) or DuckDuckGo (fallback)
   history.rs       — append-only JSONL history at ~/.local/share/eai/history.jsonl
   llm/
@@ -23,6 +24,7 @@ src/
     openai.rs      — OpenAI-compatible client (also used for Groq, OpenRouter)
     ollama.rs      — Ollama local client
     claude.rs      — Claude CLI wrapper
+build.rs           — downloads tldr-pages at build time, parses markdown, serializes with bincode+zstd
 ```
 
 ## Key patterns
@@ -35,6 +37,7 @@ src/
 - Pipe mode: `read_stdin_if_piped()` reads up to 4K chars from stdin when not a terminal.
 - The `build_openai_compat()` helper in `llm/mod.rs` handles both Groq and OpenAI backends.
 - API keys read from env vars; `env_var()` in `llm/mod.rs` falls back to reading from shell profile.
+- Tool docs resolution: embedded tldr-pages (instant O(1) lookup) + `--help` output combined. Even tools not installed get tldr docs.
 - Tool discovery: when all extracted tools are missing, searches web + LLM suggests alternatives, verifies against package registries (brew, PyPI, npm, crates.io), offers interactive install.
 - Search hierarchy: Tavily (if `TAVILY_API_KEY` set) → DuckDuckGo (fallback). Configured via `search.engine` in config.
 - Setup hides API key input (Password prompt) and validates keys with retry on 401.

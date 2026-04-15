@@ -155,9 +155,9 @@ eai history --search docker
 ## How it works
 
 1. You type `eai "..."` in plain English (or any language)
-2. eai detects CLI tools in your prompt and loads their docs (tldr/--help)
+2. eai detects CLI tools in your prompt and loads their docs — 7000+ commands from [tldr-pages](https://github.com/tldr-pages/tldr) are embedded in the binary (zero latency, works offline), combined with local `--help` output
 3. If the tool isn't installed, eai discovers alternatives via web search, verifies them against package registries, and offers to install
-4. The LLM generates the command + a brief explanation
+4. The LLM generates the command + a brief explanation, grounded on real documentation
 5. You confirm, edit (with placeholder values you can customize), refine, or search before running
 6. If it fails, the error goes back to the LLM — auto-retry up to 5x
 
@@ -239,7 +239,7 @@ The suite uses a mocked `claude` CLI and validates end-to-end flows for:
 | **Free by default** | ✓ (Gemini/Groq/Ollama) | ✗ (OpenAI) | ✗ (Needs API) | ✗ (OpenAI) |
 | **Auto-retry on error** | ✓ (feeds stderr back) | ✗ | ✗ | ✗ |
 | **Web search** | ✓ (Tavily/DDG) | ✗ (plugins) | partial | ✗ (plugins) |
-| **Tool doc detection** | ✓ (auto tldr/--help) | ✗ | ✗ | ✗ |
+| **Tool doc detection** | ✓ (7000+ embedded + --help) | ✗ | ✗ | ✗ |
 | **Tool discovery + install** | ✓ (registry-verified) | ✗ | ✗ | ✗ |
 | **Setup wizard** | ✓ (30s) | ✗ | ✓ | ✗ |
 | **Single binary** | ✓ (Rust) | Python | ✓ (Rust) | Python |
@@ -254,6 +254,10 @@ cd eai
 cargo build --release
 cargo test
 ```
+
+## Acknowledgements
+
+eai embeds documentation from [tldr-pages](https://github.com/tldr-pages/tldr), licensed under [CC-BY 4.0](https://creativecommons.org/licenses/by/4.0/). Thanks to the tldr-pages team and [contributors](https://github.com/tldr-pages/tldr/graphs/contributors) for maintaining this incredible resource.
 
 ## License
 
