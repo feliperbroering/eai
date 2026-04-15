@@ -52,34 +52,34 @@ eai "show who committed the most in the last 7 days"
 ### macOS / Linux
 
 ```bash
-# Install
+# Homebrew
+brew install feliperbroering/tap/eai
+
+# or via install script
 curl -fsSL https://raw.githubusercontent.com/feliperbroering/eai/main/install.sh | bash
-
-# Setup (30 seconds — picks a free provider for you)
-eai setup
-
-# Go
-eai "compress all PNGs in this directory"
 ```
 
-### Windows (PowerShell)
+### Windows
 
 ```powershell
-# Install (downloads precompiled binary from latest GitHub Release)
+# WinGet
+winget install feliperbroering.eai
+
+# or via install script (PowerShell)
 iwr https://raw.githubusercontent.com/feliperbroering/eai/main/install.ps1 -UseBasicParsing | iex
-
-# Setup (30 seconds — picks a free provider for you)
-eai setup
-
-# Go
-eai "compress all PNGs in this directory"
 ```
 
-### Alternative (all platforms)
+### From source (all platforms)
 
 ```bash
-# Requires Rust toolchain installed
 cargo install --git https://github.com/feliperbroering/eai
+```
+
+### Then
+
+```bash
+eai setup              # 30 seconds — picks a free provider
+eai "compress all PNGs in this directory"
 ```
 
 ## Usage
