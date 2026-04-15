@@ -89,7 +89,9 @@ pub async fn gather(
             }
         } else if let Some(tldr_doc) = tldr::lookup(tool) {
             ui::status_ok(&format!("Loaded {tool} docs from embedded tldr"));
-            sections.push(format!("### {tool} (not installed — reference only)\n{tldr_doc}"));
+            sections.push(format!(
+                "### {tool} (not installed — reference only)\n{tldr_doc}"
+            ));
             missing.push(tool.to_string());
         } else {
             missing.push(tool.to_string());

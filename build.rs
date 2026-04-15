@@ -77,10 +77,9 @@ fn parse_zip(zip_bytes: &[u8]) -> HashMap<String, TldrEntry> {
             continue;
         }
 
-        let platform = PLATFORMS.iter().find(|p| {
-            name.starts_with(&format!("{p}/"))
-                || name.contains(&format!("/{p}/"))
-        });
+        let platform = PLATFORMS
+            .iter()
+            .find(|p| name.starts_with(&format!("{p}/")) || name.contains(&format!("/{p}/")));
         if platform.is_none() {
             continue;
         }
