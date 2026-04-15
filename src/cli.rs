@@ -39,6 +39,15 @@ pub struct Cli {
     #[arg(long, alias = "wtf")]
     pub explain: bool,
 
+    #[arg(long)]
+    pub script: bool,
+
+    #[arg(long, help = "Generate a multi-step recipe instead of a one-liner")]
+    pub recipe: bool,
+
+    #[arg(long, help = "Run demo with sample prompts (no API key needed)")]
+    pub demo: bool,
+
     #[arg(short = 'v', long)]
     pub verbose: bool,
 
@@ -68,5 +77,34 @@ pub enum Commands {
 
         #[arg(long, default_value_t = 20)]
         limit: usize,
+    },
+    /// Generate shell completions
+    Completions {
+        /// Shell to generate completions for
+        #[arg(value_enum)]
+        shell: clap_complete::Shell,
+    },
+    /// Output shell integration (eval "$(eai init zsh)")
+    Init {
+        /// Shell to generate integration for
+        #[arg(value_enum)]
+        shell: ShellKind,
+    },
+    /// Save a command as a bookmark
+    Save {
+        /// Alias name
+        name: String,
+        /// Command to save
+        command: String,
+        /// Optional description
+        #[arg(long)]
+        desc: Option<String>,
+    },
+    /// List saved command aliases
+    Aliases,
+    /// Remove a saved alias
+    Unsave {
+        /// Alias name to remove
+        name: String,
     },
 }

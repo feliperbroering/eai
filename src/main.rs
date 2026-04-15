@@ -1,4 +1,6 @@
+mod aliases;
 mod app;
+mod cache;
 mod cli;
 mod config;
 mod history;

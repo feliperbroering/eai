@@ -143,6 +143,7 @@ pub struct CommandRequest {
     pub tool_docs: Option<String>,
     pub history: Vec<HistoryEntry>,
     pub stdin_data: Option<String>,
+    pub project_context: Option<String>,
 }
 
 #[derive(Debug, Clone)]

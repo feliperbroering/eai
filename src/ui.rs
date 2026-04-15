@@ -1,3 +1,4 @@
+use std::io::IsTerminal;
 use std::time::Duration;
 
 use console::{Term, measure_text_width, style};
@@ -182,6 +183,14 @@ pub fn banner() {
 // ── command display ────────────────────────────────────────────────────────
 
 pub fn print_command(command: &str, explanation: Option<&str>) {
+    print_command_inner(command, explanation, false);
+}
+
+pub fn print_command_animated(command: &str, explanation: Option<&str>) {
+    print_command_inner(command, explanation, true);
+}
+
+fn print_command_inner(command: &str, explanation: Option<&str>, animate: bool) {
     let label = format!("❯ {}", command);
     let width = measure_text_width(&label);
     let pad = 3;
@@ -192,11 +201,8 @@ pub fn print_command(command: &str, explanation: Option<&str>) {
     let term_width = if raw_width == 0 { 120 } else { raw_width };
     let use_box = total_box_width <= term_width;
 
-    let styled_cmd = format!(
-        "{} {}",
-        fg_bold("❯", &Rgb::CYAN),
-        style(command).white().bold()
-    );
+    let is_tty = std::io::stderr().is_terminal();
+    let should_animate = animate && is_tty && command.len() > 5;
 
     eprintln!();
     if use_box {
@@ -208,14 +214,32 @@ pub fn print_command(command: &str, explanation: Option<&str>) {
                 &Rgb::PURPLE
             )
         );
-        eprintln!(
-            "  {}{}{}{}{}",
-            fg("│", &Rgb::CYAN),
-            " ".repeat(pad),
-            styled_cmd,
-            " ".repeat(pad),
-            fg("│", &Rgb::PURPLE),
-        );
+
+        if should_animate {
+            eprint!(
+                "  {}{}{}",
+                fg("│", &Rgb::CYAN),
+                " ".repeat(pad),
+                fg_bold("❯ ", &Rgb::CYAN),
+            );
+            typewriter(command, Duration::from_millis(12));
+            eprintln!("{}{}", " ".repeat(pad), fg("│", &Rgb::PURPLE),);
+        } else {
+            let styled_cmd = format!(
+                "{} {}",
+                fg_bold("❯", &Rgb::CYAN),
+                style(command).white().bold()
+            );
+            eprintln!(
+                "  {}{}{}{}{}",
+                fg("│", &Rgb::CYAN),
+                " ".repeat(pad),
+                styled_cmd,
+                " ".repeat(pad),
+                fg("│", &Rgb::PURPLE),
+            );
+        }
+
         eprintln!(
             "  {}",
             gradient(
@@ -225,11 +249,26 @@ pub fn print_command(command: &str, explanation: Option<&str>) {
             )
         );
     } else {
-        eprintln!(
-            "  {} {}",
-            gradient("━━━", &Rgb::CYAN, &Rgb::PURPLE),
-            styled_cmd
-        );
+        if should_animate {
+            eprint!(
+                "  {} {}",
+                gradient("━━━", &Rgb::CYAN, &Rgb::PURPLE),
+                fg_bold("❯ ", &Rgb::CYAN),
+            );
+            typewriter(command, Duration::from_millis(12));
+            eprintln!();
+        } else {
+            let styled_cmd = format!(
+                "{} {}",
+                fg_bold("❯", &Rgb::CYAN),
+                style(command).white().bold()
+            );
+            eprintln!(
+                "  {} {}",
+                gradient("━━━", &Rgb::CYAN, &Rgb::PURPLE),
+                styled_cmd
+            );
+        }
     }
 
     if let Some(explain) = explanation {
@@ -240,6 +279,27 @@ pub fn print_command(command: &str, explanation: Option<&str>) {
         );
     }
     eprintln!();
+}
+
+fn typewriter(text: &str, char_delay: Duration) {
+    use std::io::Write;
+    let stderr = std::io::stderr();
+    let mut handle = stderr.lock();
+
+    if !console::colors_enabled_stderr() {
+        for ch in text.chars() {
+            let _ = write!(handle, "{ch}");
+            let _ = handle.flush();
+            std::thread::sleep(char_delay);
+        }
+        return;
+    }
+
+    for ch in text.chars() {
+        let _ = write!(handle, "\x1b[1;37m{ch}\x1b[0m");
+        let _ = handle.flush();
+        std::thread::sleep(char_delay);
+    }
 }
 
 // ── execution status ───────────────────────────────────────────────────────

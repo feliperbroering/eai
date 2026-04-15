@@ -60,15 +60,42 @@ pub fn search(query: Option<&str>, limit: usize) -> Result<Vec<HistoryEntry>> {
     let mut entries = load_recent(usize::MAX)?;
 
     if let Some(query) = query {
-        let query = query.to_lowercase();
-        entries.retain(|entry| {
-            entry.prompt.to_lowercase().contains(&query)
-                || entry.command.to_lowercase().contains(&query)
-                || entry.backend.to_lowercase().contains(&query)
-        });
+        let query_lower = query.to_lowercase();
+        let query_words: Vec<&str> = query_lower.split_whitespace().collect();
+
+        let mut scored: Vec<(f64, HistoryEntry)> = entries
+            .into_iter()
+            .filter_map(|entry| {
+                let text =
+                    format!("{} {} {}", entry.prompt, entry.command, entry.backend).to_lowercase();
+
+                let all_words_match = query_words.iter().all(|w| text.contains(w));
+                if !all_words_match {
+                    return None;
+                }
+
+                let mut score = 0.0;
+                if entry.command.to_lowercase().contains(&query_lower) {
+                    score += 10.0;
+                }
+                if entry.prompt.to_lowercase().contains(&query_lower) {
+                    score += 5.0;
+                }
+                if entry.exit_code == 0 {
+                    score += 2.0;
+                }
+                score += query_words.iter().filter(|w| text.contains(**w)).count() as f64;
+
+                Some((score, entry))
+            })
+            .collect();
+
+        scored.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap_or(std::cmp::Ordering::Equal));
+        entries = scored.into_iter().map(|(_, e)| e).collect();
+    } else {
+        entries.reverse();
     }
 
-    entries.reverse();
     entries.truncate(limit);
     Ok(entries)
 }

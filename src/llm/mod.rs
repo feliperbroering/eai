@@ -473,9 +473,16 @@ fn build_system_prompt(request: &CommandRequest) -> String {
         "Line 1: the shell command (raw, no backticks, no markdown fences)".to_string(),
         "Line 2: a brief casual explanation starting with // (like a code comment)".to_string(),
         String::new(),
-        "Example:".to_string(),
+        "Examples (follow this exact format):".to_string(),
+        String::new(),
         r#"docker ps --format "table {{.Names}}\t{{.Status}}""#.to_string(),
         "// lists containers showing name and status columns".to_string(),
+        String::new(),
+        "find . -type f -name '*.log' -mtime +30 -delete".to_string(),
+        "// deletes log files older than 30 days in current directory".to_string(),
+        String::new(),
+        "du -d 1 -h . | sort -hr | head -10".to_string(),
+        "// shows top 10 largest directories by size".to_string(),
         String::new(),
         "Rules:".to_string(),
         "- First line is ONLY the raw command. Second line is ONLY the // explanation.".to_string(),
@@ -512,6 +519,10 @@ fn build_system_prompt(request: &CommandRequest) -> String {
         );
     }
 
+    if request.project_context.is_some() {
+        lines.push("- Consider the project type and tools when generating commands.".to_string());
+    }
+
     if request.stdin_data.is_some() {
         lines.push(
             "- Piped data from stdin is provided. Use it to understand the data format and structure."
@@ -533,6 +544,10 @@ fn build_user_prompt(request: &CommandRequest) -> String {
         sections.push(format!(
             "Tool documentation (use ONLY these flags):\n{tool_docs}"
         ));
+    }
+
+    if let Some(ref project) = request.project_context {
+        sections.push(format!("Project context: {project}"));
     }
 
     sections.push(format!("Request: {}", request.prompt));
@@ -557,7 +572,14 @@ fn build_user_prompt(request: &CommandRequest) -> String {
     }
 
     if let Some(stdin_data) = &request.stdin_data {
-        sections.push(format!("Piped input data (stdin):\n```\n{stdin_data}\n```"));
+        let label = if stdin_data.starts_with("[Detected: ") {
+            "stdin"
+        } else {
+            "stdin, text"
+        };
+        sections.push(format!(
+            "Piped input data ({label}):\n```\n{stdin_data}\n```"
+        ));
     }
 
     if let Some(context) = &request.context {

@@ -131,12 +131,57 @@ When you ask for a tool that isn't installed, eai searches the web, finds real a
   ╰──────────────────────────────────────────────╯
 ```
 
+### Script mode — full scripts instead of one-liners
+
+```bash
+eai --script "backup my database and compress it" > backup.sh
+eai --script "setup a new Node.js project with TypeScript" > setup.sh
+```
+
+### Recipe mode — step-by-step workflows
+
+```bash
+eai --recipe "deploy a docker container to production"
+# Step 1: Build the image
+#   ❯ docker build -t myapp .
+# Step 2: Tag for registry
+#   ❯ docker tag myapp registry.example.com/myapp:latest
+# ...
+```
+
+### Command aliases — save & reuse
+
+```bash
+eai save deploy "git push origin main" --desc "push to production"
+eai @deploy               # runs the saved command directly
+eai aliases               # list all saved aliases
+eai unsave deploy          # remove an alias
+```
+
+### Shell integration — Ctrl+E
+
+```bash
+eval "$(eai init zsh)"    # add to .zshrc
+eval "$(eai init bash)"   # add to .bashrc
+eai init fish | source    # add to config.fish
+# Then press Ctrl+E to translate the current line into a command
+```
+
+### Demo mode — try without API key
+
+```bash
+eai --demo                # shows curated examples, no LLM needed
+```
+
 ### Flags
 
 ```bash
 eai --dry "..."          # show command, don't run
 eai --explain "..."      # explain a command (alias: --wtf)
+eai --script "..."       # generate a full shell script
+eai --recipe "..."       # generate a multi-step workflow
 eai --search "..."       # force web search before generating
+eai --demo               # offline demo with sample commands
 eai -b groq "..."        # force a specific backend
 eai -m llama-3.3-70b-versatile "..."  # force a specific model
 eai --no-confirm "..."   # skip confirmation (yolo)
@@ -150,6 +195,11 @@ eai setup                # interactive provider setup wizard
 eai config               # open config in $EDITOR
 eai history              # show recent commands
 eai history --search docker
+eai completions zsh      # generate shell completions
+eai init zsh             # output Ctrl+E shell integration
+eai save <name> <cmd>    # bookmark a command
+eai aliases              # list bookmarks
+eai unsave <name>        # remove bookmark
 ```
 
 ## How it works
@@ -234,13 +284,19 @@ The suite uses a mocked `claude` CLI and validates end-to-end flows for:
 
 | Feature | eai | llm | aichat | shell-gpt |
 |---|---|---|---|---|
-| **Pipe context (stdin)** | ✓ | ✓ | ✓ | ✓ |
+| **Pipe context (stdin)** | ✓ (auto-detects JSON/CSV/error) | ✓ | ✓ | ✓ |
 | **Explain mode** | ✓ (`--wtf`) | ✗ | ✗ | partial |
+| **Script/recipe generation** | ✓ (`--script`, `--recipe`) | ✗ | ✗ | ✗ |
+| **Command caching** | ✓ (instant repeat queries) | ✗ | ✗ | ✗ |
+| **Shell integration (Ctrl+E)** | ✓ (zsh/bash/fish) | ✗ | ✗ | ✗ |
+| **Command bookmarks** | ✓ (`save`/`@alias`) | ✗ | ✗ | ✗ |
+| **Project-aware** | ✓ (auto-detects Cargo/npm/Go/Docker) | ✗ | ✗ | ✗ |
 | **Free by default** | ✓ (Gemini/Groq/Ollama) | ✗ (OpenAI) | ✗ (Needs API) | ✗ (OpenAI) |
 | **Auto-retry on error** | ✓ (feeds stderr back) | ✗ | ✗ | ✗ |
 | **Web search** | ✓ (Tavily/DDG) | ✗ (plugins) | partial | ✗ (plugins) |
 | **Tool doc detection** | ✓ (7000+ embedded + --help) | ✗ | ✗ | ✗ |
 | **Tool discovery + install** | ✓ (registry-verified) | ✗ | ✗ | ✗ |
+| **Shell completions** | ✓ (zsh/bash/fish) | ✗ | ✗ | ✗ |
 | **Setup wizard** | ✓ (30s) | ✗ | ✓ | ✗ |
 | **Single binary** | ✓ (Rust) | Python | ✓ (Rust) | Python |
 

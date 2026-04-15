@@ -43,6 +43,190 @@ pub struct ToolSuggestion {
     pub review: Option<String>,
 }
 
+fn is_coreutils_only_prompt(prompt: &str) -> bool {
+    let words: Vec<&str> = prompt
+        .split_whitespace()
+        .map(|w| w.trim_matches(|c: char| !c.is_alphanumeric() && c != '-' && c != '_'))
+        .filter(|w| !w.is_empty())
+        .collect();
+
+    words.iter().all(|w| {
+        let w = w.to_lowercase();
+        is_noise_word(&w)
+            || w.len() <= 2
+            || w.chars()
+                .any(|c| !c.is_ascii_alphanumeric() && c != '-' && c != '_')
+            || COMMON_WORDS.contains(&w.as_str())
+    })
+}
+
+const COMMON_WORDS: &[&str] = &[
+    "all",
+    "files",
+    "folder",
+    "directory",
+    "directories",
+    "current",
+    "home",
+    "recursive",
+    "recursively",
+    "show",
+    "display",
+    "print",
+    "count",
+    "number",
+    "size",
+    "sizes",
+    "large",
+    "largest",
+    "small",
+    "smallest",
+    "old",
+    "oldest",
+    "new",
+    "newest",
+    "recent",
+    "modified",
+    "created",
+    "deleted",
+    "hidden",
+    "empty",
+    "name",
+    "names",
+    "path",
+    "paths",
+    "type",
+    "types",
+    "extension",
+    "permissions",
+    "owner",
+    "group",
+    "contents",
+    "content",
+    "text",
+    "lines",
+    "words",
+    "bytes",
+    "characters",
+    "pattern",
+    "match",
+    "matches",
+    "replace",
+    "rename",
+    "copy",
+    "move",
+    "delete",
+    "remove",
+    "create",
+    "make",
+    "write",
+    "read",
+    "append",
+    "prepend",
+    "sort",
+    "sorted",
+    "unique",
+    "duplicate",
+    "duplicates",
+    "compress",
+    "extract",
+    "archive",
+    "zip",
+    "unzip",
+    "backup",
+    "restore",
+    "search",
+    "find",
+    "locate",
+    "list",
+    "tree",
+    "compare",
+    "diff",
+    "merge",
+    "split",
+    "join",
+    "concat",
+    "head",
+    "tail",
+    "first",
+    "last",
+    "top",
+    "bottom",
+    "reverse",
+    "shuffle",
+    "random",
+    "sample",
+    "filter",
+    "exclude",
+    "include",
+    "only",
+    "except",
+    "from",
+    "into",
+    "with",
+    "without",
+    "using",
+    "the",
+    "and",
+    "but",
+    "not",
+    "this",
+    "that",
+    "those",
+    "these",
+    "here",
+    "there",
+    "where",
+    "when",
+    "how",
+    "what",
+    "which",
+    "who",
+    "why",
+    "each",
+    "every",
+    "any",
+    "some",
+    "many",
+    "few",
+    "more",
+    "less",
+    "than",
+    "between",
+    "before",
+    "after",
+    "above",
+    "below",
+    "over",
+    "under",
+    "por",
+    "para",
+    "com",
+    "sem",
+    "todos",
+    "todas",
+    "cada",
+    "entre",
+    "maior",
+    "menor",
+    "mais",
+    "menos",
+    "como",
+    "onde",
+    "quando",
+    "mostrar",
+    "listar",
+    "buscar",
+    "procurar",
+    "encontrar",
+    "ordenar",
+    "pasta",
+    "pastas",
+    "arquivo",
+    "arquivos",
+    "diretorio",
+];
+
 pub async fn gather(
     backend: &Backend,
     prompt: &str,
@@ -50,6 +234,10 @@ pub async fn gather(
     search_engine: SearchEngine,
     interactive: bool,
 ) -> Result<ToolContext> {
+    if is_coreutils_only_prompt(prompt) {
+        return Ok(ToolContext { tool_docs: None });
+    }
+
     let sp = ui::spinner("Analyzing prompt...");
     let tools = match extract_tool_names(backend, prompt).await {
         Ok(t) => t,
@@ -1220,5 +1408,18 @@ mod tests {
         assert!(!is_valid_pkg_name(""));
         assert!(!is_valid_pkg_name("a..b"));
         assert!(!is_valid_pkg_name(&"x".repeat(200)));
+    }
+
+    #[test]
+    fn coreutils_only_skips_extraction() {
+        assert!(is_coreutils_only_prompt("list all files sorted by size"));
+        assert!(is_coreutils_only_prompt("show largest directories"));
+        assert!(is_coreutils_only_prompt(
+            "find empty files in current directory"
+        ));
+        assert!(is_coreutils_only_prompt("mostrar arquivos na pasta"));
+        assert!(!is_coreutils_only_prompt("convert video with ffmpeg"));
+        assert!(!is_coreutils_only_prompt("deploy with terraform"));
+        assert!(!is_coreutils_only_prompt("run docker containers"));
     }
 }
