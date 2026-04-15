@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.10.0](https://github.com/feliperbroering/eai/compare/v0.9.1...v0.10.0) (2026-04-15)
+
+
+### Features
+
+* embed tldr-pages for instant tool documentation lookup ([8649947](https://github.com/feliperbroering/eai/commit/8649947abf37faa734a06bb917cc39c10e50ed90))
+
+
+### Bug Fixes
+
+* disable default-tls for build-dep reqwest to avoid openssl in CI ([27bfec7](https://github.com/feliperbroering/eai/commit/27bfec7c370ae1009badbddbf1e67ba63f946eed))
+
 ## [0.9.1](https://github.com/feliperbroering/eai/compare/v0.9.0...v0.9.1) (2026-04-15)
 
 
