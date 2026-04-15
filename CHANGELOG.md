@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.9.1](https://github.com/feliperbroering/eai/compare/v0.9.0...v0.9.1) (2026-04-15)
+
+
+### Bug Fixes
+
+* handle empty/whitespace prompts and command box in non-TTY ([2e3c2f4](https://github.com/feliperbroering/eai/commit/2e3c2f4410bd7424553ff71a26c28a35418d8daa))
+
 ## [0.9.0](https://github.com/feliperbroering/eai/compare/v0.8.1...v0.9.0) (2026-04-15)
 
 
