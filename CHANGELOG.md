@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.0](https://github.com/feliperbroering/eai/compare/v0.11.0...v0.12.0) (2026-04-15)
+
+
+### Features
+
+* add caching, shell integration, aliases, script/recipe mode, streaming animation, and more ([f2a64ab](https://github.com/feliperbroering/eai/commit/f2a64ab50048cb4daa86baf0825cb8f0000f027c))
+
 ## [0.11.0](https://github.com/feliperbroering/eai/compare/v0.10.0...v0.11.0) (2026-04-15)
 
 
