@@ -8,12 +8,20 @@ use bincode::Encode;
 const TLDR_ZIP_URL: &str =
     "https://github.com/tldr-pages/tldr/releases/latest/download/tldr-pages.en.zip";
 
-const PLATFORMS: &[&str] = &["common", "osx", "linux"];
+const PLATFORMS: &[&str] = &["common", "osx", "linux", "windows"];
 
 #[derive(Encode)]
 struct TldrEntry {
     description: String,
     examples: Vec<(String, String)>,
+}
+
+#[derive(Encode)]
+struct TldrIndex {
+    common: HashMap<String, TldrEntry>,
+    osx: HashMap<String, TldrEntry>,
+    linux: HashMap<String, TldrEntry>,
+    windows: HashMap<String, TldrEntry>,
 }
 
 fn main() {
@@ -29,17 +37,20 @@ fn main() {
     let zip_bytes = download_tldr_zip();
     let index = parse_zip(&zip_bytes);
 
+    let total = index.common.len() + index.osx.len() + index.linux.len() + index.windows.len();
     let encoded = bincode::encode_to_vec(&index, bincode::config::standard()).unwrap();
-
     let compressed = zstd::encode_all(Cursor::new(&encoded), 19).unwrap();
 
     let mut f = fs::File::create(&blob_path).unwrap();
     f.write_all(&compressed).unwrap();
 
     eprintln!(
-        "tldr: {} commands, {} KB raw, {} KB compressed",
-        index.len(),
-        encoded.len() / 1024,
+        "tldr: {} total ({} common, {} osx, {} linux, {} windows), {} KB compressed",
+        total,
+        index.common.len(),
+        index.osx.len(),
+        index.linux.len(),
+        index.windows.len(),
         compressed.len() / 1024,
     );
 }
@@ -64,10 +75,23 @@ fn download_tldr_zip() -> Vec<u8> {
     bytes
 }
 
-fn parse_zip(zip_bytes: &[u8]) -> HashMap<String, TldrEntry> {
+fn detect_platform(path: &str) -> Option<&'static str> {
+    for p in PLATFORMS {
+        if path.starts_with(&format!("{p}/")) || path.contains(&format!("/{p}/")) {
+            return Some(p);
+        }
+    }
+    None
+}
+
+fn parse_zip(zip_bytes: &[u8]) -> TldrIndex {
     let reader = Cursor::new(zip_bytes);
     let mut archive = zip::ZipArchive::new(reader).unwrap();
-    let mut index: HashMap<String, TldrEntry> = HashMap::new();
+
+    let mut common: HashMap<String, TldrEntry> = HashMap::new();
+    let mut osx: HashMap<String, TldrEntry> = HashMap::new();
+    let mut linux: HashMap<String, TldrEntry> = HashMap::new();
+    let mut windows: HashMap<String, TldrEntry> = HashMap::new();
 
     for i in 0..archive.len() {
         let mut file = archive.by_index(i).unwrap();
@@ -77,12 +101,10 @@ fn parse_zip(zip_bytes: &[u8]) -> HashMap<String, TldrEntry> {
             continue;
         }
 
-        let platform = PLATFORMS
-            .iter()
-            .find(|p| name.starts_with(&format!("{p}/")) || name.contains(&format!("/{p}/")));
-        if platform.is_none() {
-            continue;
-        }
+        let platform = match detect_platform(&name) {
+            Some(p) => p,
+            None => continue,
+        };
 
         let cmd_name = Path::new(&name)
             .file_stem()
@@ -94,20 +116,34 @@ fn parse_zip(zip_bytes: &[u8]) -> HashMap<String, TldrEntry> {
             continue;
         }
 
-        // common has lowest priority — platform-specific overrides
-        if index.contains_key(&cmd_name) && name.contains("/common/") {
-            continue;
-        }
-
         let mut contents = String::new();
         file.read_to_string(&mut contents).unwrap_or_default();
 
         if let Some(entry) = parse_tldr_page(&contents) {
-            index.insert(cmd_name, entry);
+            match platform {
+                "common" => {
+                    common.insert(cmd_name, entry);
+                }
+                "osx" => {
+                    osx.insert(cmd_name, entry);
+                }
+                "linux" => {
+                    linux.insert(cmd_name, entry);
+                }
+                "windows" => {
+                    windows.insert(cmd_name, entry);
+                }
+                _ => {}
+            }
         }
     }
 
-    index
+    TldrIndex {
+        common,
+        osx,
+        linux,
+        windows,
+    }
 }
 
 fn parse_tldr_page(content: &str) -> Option<TldrEntry> {

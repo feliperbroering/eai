@@ -95,7 +95,7 @@ impl LlmClient for OpenAiCompatClient {
     async fn generate_command(&self, request: &CommandRequest) -> Result<GeneratedCommand> {
         let (system, user) = render_prompt(request);
         let content = self.post(&system, &user).await?;
-        let parsed = parse_response(&content);
+        let parsed = parse_response(&content, &request.os.to_string());
         if parsed.command.is_empty() {
             bail!("{} returned an empty command", self.label);
         }

@@ -53,7 +53,7 @@ impl LlmClient for OllamaClient {
     async fn generate_command(&self, request: &CommandRequest) -> Result<GeneratedCommand> {
         let (system, prompt) = render_prompt(request);
         let raw = self.post(&system, &prompt).await?;
-        let parsed = parse_response(&raw);
+        let parsed = parse_response(&raw, &request.os.to_string());
         if parsed.command.is_empty() {
             bail!("ollama returned an empty command");
         }

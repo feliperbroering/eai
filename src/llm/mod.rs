@@ -416,7 +416,54 @@ pub fn generation_limit() -> usize {
     MAX_GENERATIONS
 }
 
+fn os_specific_rules(os: &str) -> &'static str {
+    match os {
+        "macos" => {
+            r#"
+CRITICAL — macOS/BSD compatibility:
+- sed: MUST use `sed -i '' 's/.../g'` (BSD sed requires '' after -i)
+- du: use `-d N` NOT `--max-depth=N`
+- sort: `-h` is supported, but use `sort -n` when in doubt
+- ps: use `ps aux | sort -k4 -rn` NOT `ps -eo ... --sort=`
+- top: use `top -l 1` NOT `top -b -n1`
+- sha256: use `shasum -a 256` NOT `sha256sum`
+- md5: use `md5` or `md5 -r` NOT `md5sum`
+- readlink: use `realpath` NOT `readlink -f`
+- rename: NOT available. Use `for f in *.old; do mv "$f" "${f%.old}.new"; done`
+- open: use `open` to open files/URLs
+- stat: use `stat -f '%z'` NOT `stat -c '%s'`
+- date: use `date -v-1d` NOT `date -d 'yesterday'`
+- xargs: use `xargs` without `-r` flag (BSD xargs has no -r)
+- find: `-maxdepth` is supported on macOS BUT must come before other predicates
+- grep: `-P` (PCRE) is NOT available. Use `grep -E` or install `ggrep`"#
+        }
+        "windows" => {
+            r#"
+CRITICAL — Windows/PowerShell compatibility:
+- Use PowerShell cmdlets when possible (Get-ChildItem, Select-String, etc.)
+- Path separator is `\` not `/`
+- Use `Get-Content` not `cat`, `Select-String` not `grep`
+- Piping uses PowerShell pipeline semantics
+- Use `Remove-Item -Recurse` not `rm -rf`
+- Use `$env:VAR` not `$VAR` for environment variables"#
+        }
+        _ => {
+            r#"
+CRITICAL — Linux/GNU compatibility:
+- sed: use `sed -i 's/.../g'` (GNU sed, no '' after -i)
+- du: use `--max-depth=N` or `-d N` (both work)
+- open: use `xdg-open` NOT `open`
+- md5: use `md5sum` NOT `md5`
+- sha256: use `sha256sum` NOT `shasum`
+- ps: `ps -eo ... --sort=-pmem` is supported
+- top: use `top -bn1` for batch mode"#
+        }
+    }
+}
+
 fn build_system_prompt(request: &CommandRequest) -> String {
+    let os_rules = os_specific_rules(&request.os.to_string());
+
     let mut lines = vec![
         format!(
             "You are a shell command generator for {} ({}).",
@@ -441,6 +488,7 @@ fn build_system_prompt(request: &CommandRequest) -> String {
         "- Assume tools mentioned by name are installed.".to_string(),
         "- Prefer safe inspection commands over destructive ones unless explicitly asked.".to_string(),
         "- NEVER generate interactive commands that prompt for user input (e.g. read, select, vared). Instead, use placeholder values like YOUR_VAR_NAME or YOUR_VALUE that the user can edit before running.".to_string(),
+        os_rules.to_string(),
     ];
 
     if request.tool_docs.is_some() {
@@ -519,7 +567,7 @@ fn build_user_prompt(request: &CommandRequest) -> String {
     sections.join("\n\n")
 }
 
-pub fn parse_response(raw: &str) -> GeneratedCommand {
+pub fn parse_response(raw: &str, os: &str) -> GeneratedCommand {
     let text = raw.trim();
 
     let text = text
@@ -557,10 +605,77 @@ pub fn parse_response(raw: &str) -> GeneratedCommand {
         }
     }
 
+    let command = fix_os_flags(&command, os);
+
     GeneratedCommand {
         command,
         explanation,
     }
+}
+
+fn fix_os_flags(cmd: &str, os: &str) -> String {
+    match os {
+        "macos" => fix_for_macos(cmd),
+        "linux" => fix_for_linux(cmd),
+        _ => cmd.to_string(),
+    }
+}
+
+fn fix_for_macos(cmd: &str) -> String {
+    use regex_lite::Regex;
+
+    let mut result = cmd.to_string();
+
+    // du --max-depth=N → du -d N
+    let re = Regex::new(r"--max-depth[= ](\d+)").unwrap();
+    if result.contains("du ") {
+        result = re.replace_all(&result, "-d $1").to_string();
+    }
+
+    // sha256sum → shasum -a 256
+    result = result.replace("sha256sum", "shasum -a 256");
+
+    // md5sum → md5 -r
+    result = result.replace("md5sum", "md5 -r");
+
+    // sed -i 's → sed -i '' 's  (only if missing the '')
+    if result.contains("sed -i ")
+        && !result.contains("sed -i ''")
+        && !result.contains("sed -i \"\"")
+    {
+        result = result.replace("sed -i ", "sed -i '' ");
+    }
+
+    // readlink -f → realpath
+    result = result.replace("readlink -f", "realpath");
+
+    // xdg-open → open
+    result = result.replace("xdg-open", "open");
+
+    result
+}
+
+fn fix_for_linux(cmd: &str) -> String {
+    let mut result = cmd.to_string();
+
+    // macOS md5 → md5sum
+    if result.contains(" md5 ") && !result.contains("md5sum") {
+        result = result.replace(" md5 ", " md5sum ");
+    }
+
+    // shasum -a 256 → sha256sum
+    result = result.replace("shasum -a 256", "sha256sum");
+
+    // open → xdg-open (only standalone, not ssh/curl/etc.)
+    if result.starts_with("open ") {
+        result = result.replacen("open ", "xdg-open ", 1);
+    }
+
+    // sed -i '' → sed -i
+    result = result.replace("sed -i '' ", "sed -i ");
+    result = result.replace("sed -i \"\" ", "sed -i ");
+
+    result
 }
 
 #[derive(Debug, Deserialize)]
@@ -580,15 +695,17 @@ mod tests {
 
     #[test]
     fn strips_code_fences() {
-        let parsed = parse_response("```bash\nrg TODO .\n```");
+        let parsed = parse_response("```bash\nrg TODO .\n```", "linux");
         assert_eq!(parsed.command, "rg TODO .");
         assert!(parsed.explanation.is_none());
     }
 
     #[test]
     fn parses_command_with_explanation() {
-        let parsed =
-            parse_response("docker ps --all\n// lists all containers including stopped ones");
+        let parsed = parse_response(
+            "docker ps --all\n// lists all containers including stopped ones",
+            "linux",
+        );
         assert_eq!(parsed.command, "docker ps --all");
         assert_eq!(
             parsed.explanation.as_deref(),
@@ -598,8 +715,38 @@ mod tests {
 
     #[test]
     fn handles_raw_command_only() {
-        let parsed = parse_response("head -n 20 readme.md");
+        let parsed = parse_response("head -n 20 readme.md", "linux");
         assert_eq!(parsed.command, "head -n 20 readme.md");
         assert!(parsed.explanation.is_none());
+    }
+
+    #[test]
+    fn fixes_gnu_flags_on_macos() {
+        let parsed = parse_response("du --max-depth=1 . | sort -rn", "macos");
+        assert_eq!(parsed.command, "du -d 1 . | sort -rn");
+
+        let parsed = parse_response("sha256sum file.txt", "macos");
+        assert_eq!(parsed.command, "shasum -a 256 file.txt");
+
+        let parsed = parse_response("md5sum file.txt", "macos");
+        assert_eq!(parsed.command, "md5 -r file.txt");
+    }
+
+    #[test]
+    fn fixes_bsd_flags_on_linux() {
+        let parsed = parse_response("shasum -a 256 file.txt", "linux");
+        assert_eq!(parsed.command, "sha256sum file.txt");
+
+        let parsed = parse_response("open https://example.com", "linux");
+        assert_eq!(parsed.command, "xdg-open https://example.com");
+    }
+
+    #[test]
+    fn no_false_positive_fixes() {
+        let parsed = parse_response("curl https://example.com", "macos");
+        assert_eq!(parsed.command, "curl https://example.com");
+
+        let parsed = parse_response("echo hello", "linux");
+        assert_eq!(parsed.command, "echo hello");
     }
 }

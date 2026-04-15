@@ -63,7 +63,7 @@ impl LlmClient for ClaudeCliClient {
     async fn generate_command(&self, request: &CommandRequest) -> Result<GeneratedCommand> {
         let (system, user) = render_prompt(request);
         let stdout = self.run(&system, &user).await?;
-        let parsed = parse_response(&stdout);
+        let parsed = parse_response(&stdout, &request.os.to_string());
         if parsed.command.is_empty() {
             bail!("claude returned an empty command");
         }
