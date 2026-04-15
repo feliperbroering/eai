@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.0](https://github.com/feliperbroering/eai/compare/v0.10.0...v0.11.0) (2026-04-15)
+
+
+### Features
+
+* OS-aware command accuracy — platform tldr, flag correction, enhanced prompts ([8a6e134](https://github.com/feliperbroering/eai/commit/8a6e1343c8b0a37440325125b7377c17992baa14))
+
 ## [0.10.0](https://github.com/feliperbroering/eai/compare/v0.9.1...v0.10.0) (2026-04-15)
 
 
