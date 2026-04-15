@@ -48,6 +48,17 @@ pub fn lookup(prompt: &str, os: &str, shell: &str) -> Option<(String, Option<Str
     None
 }
 
+pub fn clear() -> bool {
+    let Some(path) = cache_path() else {
+        return false;
+    };
+    if path.exists() {
+        fs::remove_file(&path).is_ok()
+    } else {
+        false
+    }
+}
+
 pub fn store(prompt: &str, os: &str, shell: &str, command: &str, explanation: Option<&str>) {
     let Some(path) = cache_path() else { return };
 

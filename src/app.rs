@@ -75,6 +75,14 @@ pub async fn run(cli: Cli) -> Result<()> {
             }
             Ok(())
         }
+        Some(Commands::ClearCache) => {
+            if cache::clear() {
+                ui::status_ok("Cache cleared");
+            } else {
+                ui::status_warn("No cache to clear");
+            }
+            Ok(())
+        }
         None => {
             if cli.demo {
                 run_demo();

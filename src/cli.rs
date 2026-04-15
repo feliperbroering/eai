@@ -118,4 +118,6 @@ pub enum Commands {
         /// Alias name to remove
         name: String,
     },
+    /// Clear the prompt→command cache
+    ClearCache,
 }

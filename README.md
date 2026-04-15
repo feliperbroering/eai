@@ -234,6 +234,7 @@ eai init <shell>                Output Ctrl+E shell integration
 eai save <name> <cmd> [--desc]  Bookmark a command
 eai aliases                     List all bookmarks
 eai unsave <name>               Remove a bookmark
+eai clear-cache                 Clear the prompt→command cache
 ```
 
 ## How it works
