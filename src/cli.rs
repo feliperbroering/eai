@@ -18,36 +18,47 @@ fn long_version() -> &'static str {
     trailing_var_arg = true
 )]
 pub struct Cli {
+    /// AI backend to use
     #[arg(short = 'b', long, value_enum)]
     pub backend: Option<BackendKind>,
 
+    /// Model name to use (overrides config)
     #[arg(short = 'm', long)]
     pub model: Option<String>,
 
+    /// Target shell for generated commands
     #[arg(short = 's', long, value_enum)]
     pub shell: Option<ShellKind>,
 
+    /// Show the command but don't run it
     #[arg(long)]
     pub dry: bool,
 
+    /// Skip confirmation prompt (yolo mode)
     #[arg(long)]
     pub no_confirm: bool,
 
+    /// Force web search before generating
     #[arg(long = "search")]
     pub force_search: bool,
 
+    /// Explain a command instead of generating one (alias: --wtf)
     #[arg(long, alias = "wtf")]
     pub explain: bool,
 
+    /// Generate a full shell script instead of a one-liner
     #[arg(long)]
     pub script: bool,
 
-    #[arg(long, help = "Generate a multi-step recipe instead of a one-liner")]
+    /// Generate a multi-step recipe instead of a one-liner
+    #[arg(long)]
     pub recipe: bool,
 
-    #[arg(long, help = "Run demo with sample prompts (no API key needed)")]
+    /// Run demo with sample prompts (no API key needed)
+    #[arg(long)]
     pub demo: bool,
 
+    /// Show system/user prompts sent to the LLM
     #[arg(short = 'v', long)]
     pub verbose: bool,
 

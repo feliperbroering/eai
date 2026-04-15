@@ -26,7 +26,7 @@
 ---
 
 ```bash
-# ffmpeg (time slice + codec flags)
+# ffmpeg — time slice + codec flags
 eai "extract audio from video.mp4 as mp3 320kbps, only from 1:30 to 3:45"
 ▶ ffmpeg -i video.mp4 -ss 00:01:30 -to 00:03:45 -vn -acodec libmp3lame -b:a 320k output.mp3
 
@@ -35,14 +35,10 @@ eai "replace all occurrences of localhost:3000 with api.prod.com in every .env f
 ▶ find . -name ".env" -exec sed -i '' 's/localhost:3000/api.prod.com/g' {} +
 
 # rsync with excludes, compression, and permissions
-eai "sync my local ./dist to server 192.168.1.50:/var/www excluding node_modules and .git, with compression, preserving permissions"
+eai "sync ./dist to server 192.168.1.50:/var/www excluding node_modules and .git"
 ▶ rsync -avz --exclude='node_modules' --exclude='.git' ./dist/ user@192.168.1.50:/var/www/
 
-# iptables NAT redirect
-eai "redirect all incoming traffic on port 80 to port 3000"
-▶ sudo iptables -t nat -A PREROUTING -p tcp --dport 80 -j REDIRECT --to-port 3000
-
-# git log analysis with shell pipeline
+# git log analysis
 eai "show who committed the most in the last 7 days"
 ▶ git log --since="7 days ago" --format="%an" | sort | uniq -c | sort -rn
 ```
@@ -52,10 +48,10 @@ eai "show who committed the most in the last 7 days"
 ### macOS / Linux
 
 ```bash
-# Homebrew
+# Homebrew (recommended)
 brew install feliperbroering/tap/eai
 
-# or via install script
+# or install script
 curl -fsSL https://raw.githubusercontent.com/feliperbroering/eai/main/install.sh | bash
 ```
 
@@ -65,11 +61,11 @@ curl -fsSL https://raw.githubusercontent.com/feliperbroering/eai/main/install.sh
 # WinGet
 winget install feliperbroering.eai
 
-# or via install script (PowerShell)
+# or PowerShell script
 iwr https://raw.githubusercontent.com/feliperbroering/eai/main/install.ps1 -UseBasicParsing | iex
 ```
 
-### From source (all platforms)
+### From source
 
 ```bash
 cargo install --git https://github.com/feliperbroering/eai
@@ -78,11 +74,13 @@ cargo install --git https://github.com/feliperbroering/eai
 ### Then
 
 ```bash
-eai setup              # 30 seconds — picks a free provider
-eai "compress all PNGs in this directory"
+eai setup                     # 30s — picks a free provider
+eai "compress all PNGs here"  # go
 ```
 
 ## Usage
+
+### Basic — natural language to shell
 
 ```bash
 eai "kill whatever is on port 3000"
@@ -92,6 +90,8 @@ eai "convert this video to gif at 10fps"
 ```
 
 ### Pipe mode — feed data as context
+
+eai auto-detects piped content type (JSON, CSV, error output, HTML, Markdown):
 
 ```bash
 cat error.log | eai "what command fixes this"
@@ -107,31 +107,9 @@ eai --explain "awk '{print \$NF}' access.log | sort | uniq -c | sort -rn"
 eai --wtf "tar -xzf archive.tar.gz -C /tmp"
 ```
 
-### Tool discovery
-
-When you ask for a tool that isn't installed, eai searches the web, finds real alternatives, verifies them against package registries (brew, PyPI, npm, crates.io), and offers to install:
-
-```
-  🔍 Tools found for your task:
-
-  1.  docling
-     Converts PDF, DOCX, HTML to Markdown with table support
-     https://github.com/DS4SD/docling
-     v2.31.0
-     pip install docling
-
-  2.  marker
-     Fast PDF to Markdown converter with OCR
-     https://github.com/VikParuchuri/marker
-     v1.3.2
-     pip install marker-pdf
-
-  ╭──────────────────────────────────────────────╮
-  │  ● install 1-2  │  ● skip s  │  ● cancel ^C  │
-  ╰──────────────────────────────────────────────╯
-```
-
 ### Script mode — full scripts instead of one-liners
+
+Outputs to stdout — pipe to a file:
 
 ```bash
 eai --script "backup my database and compress it" > backup.sh
@@ -142,74 +120,134 @@ eai --script "setup a new Node.js project with TypeScript" > setup.sh
 
 ```bash
 eai --recipe "deploy a docker container to production"
-# Step 1: Build the image
-#   ❯ docker build -t myapp .
-# Step 2: Tag for registry
-#   ❯ docker tag myapp registry.example.com/myapp:latest
-# ...
 ```
 
-### Command aliases — save & reuse
+```
+  Step 1: Build the Docker image
+    ❯ docker build -t myapp .
 
-```bash
-eai save deploy "git push origin main" --desc "push to production"
-eai @deploy               # runs the saved command directly
-eai aliases               # list all saved aliases
-eai unsave deploy          # remove an alias
+  Step 2: Tag for registry
+    ❯ docker tag myapp registry.example.com/myapp:latest
+
+  Step 3: Push to registry
+    ❯ docker push registry.example.com/myapp:latest
+
+  Step 4: Deploy on server
+    ❯ ssh server 'docker pull registry.example.com/myapp:latest && docker run -d -p 80:3000 myapp'
+```
+
+### Tool discovery — find & install tools
+
+When you ask for a tool that isn't installed, eai searches the web, verifies against package registries (brew, PyPI, npm, crates.io), and offers to install:
+
+```
+  🔍 Tools found for your task:
+
+  1.  docling                                    ★ 18.2k
+     Converts PDF, DOCX, HTML to Markdown with table support
+     https://github.com/DS4SD/docling
+     pip install docling
+
+  2.  marker                                     ★ 19.1k
+     Fast PDF to Markdown converter with OCR
+     https://github.com/VikParuchuri/marker
+     pip install marker-pdf
+
+  ╭──────────────────────────────────────────────╮
+  │  ● install 1-2  │  ● skip s  │  ● cancel ^C  │
+  ╰──────────────────────────────────────────────╯
 ```
 
 ### Shell integration — Ctrl+E
+
+Transform what you're typing directly into a shell command:
 
 ```bash
 eval "$(eai init zsh)"    # add to .zshrc
 eval "$(eai init bash)"   # add to .bashrc
 eai init fish | source    # add to config.fish
-# Then press Ctrl+E to translate the current line into a command
+```
+
+Then type a description on your prompt and press **Ctrl+E** — eai replaces it with the generated command.
+
+### Command bookmarks — save & reuse
+
+```bash
+eai save deploy "git push origin main" --desc "push to production"
+eai save logs "docker logs -f --tail 100 app" --desc "tail app logs"
+
+eai @deploy               # runs saved command directly (no LLM call)
+eai @logs                 # instant — no API key needed
+
+eai aliases               # list all bookmarks
+eai unsave deploy         # remove a bookmark
+```
+
+### Shell completions
+
+```bash
+# zsh (add to .zshrc)
+eval "$(eai completions zsh)"
+
+# bash (add to .bashrc)
+eval "$(eai completions bash)"
+
+# fish (add to config.fish)
+eai completions fish | source
 ```
 
 ### Demo mode — try without API key
 
 ```bash
-eai --demo                # shows curated examples, no LLM needed
+eai --demo
 ```
 
-### Flags
+Shows curated prompt→command examples to see what eai can do — no LLM call, no API key needed.
 
-```bash
-eai --dry "..."          # show command, don't run
-eai --explain "..."      # explain a command (alias: --wtf)
-eai --script "..."       # generate a full shell script
-eai --recipe "..."       # generate a multi-step workflow
-eai --search "..."       # force web search before generating
-eai --demo               # offline demo with sample commands
-eai -b groq "..."        # force a specific backend
-eai -m llama-3.3-70b-versatile "..."  # force a specific model
-eai --no-confirm "..."   # skip confirmation (yolo)
-eai -v "..."             # show system/user prompts (debug)
+## All flags
+
+```
+eai [FLAGS] <PROMPT>
+
+FLAGS:
+  --dry              Show the command but don't run it
+  --explain / --wtf  Explain a command (break down each flag)
+  --script           Generate a full shell script
+  --recipe           Generate a multi-step workflow
+  --search           Force web search before generating
+  --demo             Offline demo with sample commands
+  --no-confirm       Skip confirmation (yolo mode)
+  -b <BACKEND>       Force backend (gemini, groq, openai, ollama, claude-cli)
+  -m <MODEL>         Override model name
+  -s <SHELL>         Target shell (zsh, bash, fish, sh, powershell, cmd)
+  -v, --verbose      Show system/user prompts sent to the LLM
 ```
 
-### Subcommands
+## All subcommands
 
-```bash
-eai setup                # interactive provider setup wizard
-eai config               # open config in $EDITOR
-eai history              # show recent commands
-eai history --search docker
-eai completions zsh      # generate shell completions
-eai init zsh             # output Ctrl+E shell integration
-eai save <name> <cmd>    # bookmark a command
-eai aliases              # list bookmarks
-eai unsave <name>        # remove bookmark
+```
+eai setup                       Interactive provider setup wizard
+eai config                      Open config file in $EDITOR
+eai history [--search <q>]      Show command history (fuzzy search)
+eai completions <shell>         Generate shell completions (zsh/bash/fish)
+eai init <shell>                Output Ctrl+E shell integration
+eai save <name> <cmd> [--desc]  Bookmark a command
+eai aliases                     List all bookmarks
+eai unsave <name>               Remove a bookmark
 ```
 
 ## How it works
 
 1. You type `eai "..."` in plain English (or any language)
-2. eai detects CLI tools in your prompt and loads their docs — 7000+ commands from [tldr-pages](https://github.com/tldr-pages/tldr) are embedded in the binary (zero latency, works offline), combined with local `--help` output
-3. If the tool isn't installed, eai discovers alternatives via web search, verifies them against package registries, and offers to install
-4. The LLM generates the command + a brief explanation, grounded on real documentation
-5. You confirm, edit (with placeholder values you can customize), refine, or search before running
-6. If it fails, the error goes back to the LLM — auto-retry up to 5x
+2. eai detects your project context (Cargo.toml, package.json, go.mod, Dockerfile, etc.) and adapts commands accordingly
+3. If the prompt was seen before, the cached result is returned instantly
+4. Otherwise, eai loads tool docs — 7000+ commands from [tldr-pages](https://github.com/tldr-pages/tldr) embedded in the binary (zero latency, works offline), combined with local `--help` output
+5. If the tool isn't installed, eai discovers alternatives via web search, verifies them against package registries, and offers to install
+6. The LLM generates the command + a brief explanation, grounded on real documentation
+7. OS-specific flag correction ensures the command works on your OS (macOS/BSD vs Linux/GNU)
+8. Post-generation validation warns if the main binary isn't in your PATH
+9. You confirm, edit, refine, or search before running
+10. If it fails, the error goes back to the LLM — auto-retry up to 5x
 
 ## Providers
 
@@ -226,6 +264,8 @@ Run `eai setup` to connect your preferred backend:
 | **Custom API** | GLM, Kimi, DeepSeek... | Any OpenAI-compatible |
 
 Override per-command: `-b gemini`, `-b groq`, `-b openai`, `-b ollama`, `-b claude-cli`.
+
+Rate limit auto-retry: if a provider returns HTTP 429, eai waits 3 seconds and retries automatically.
 
 ## Web Search
 
@@ -267,6 +307,11 @@ Config location:
 - macOS: `~/Library/Application Support/eai/config.toml`
 - Windows: `%APPDATA%\eai\config.toml`
 
+Data locations:
+- Cache: `~/.cache/eai/cache.jsonl`
+- History: `~/.local/share/eai/history.jsonl`
+- Bookmarks: `~/.config/eai/aliases.json`
+
 ## E2E Tests (Robot Framework)
 
 ```bash
@@ -288,15 +333,17 @@ The suite uses a mocked `claude` CLI and validates end-to-end flows for:
 | **Explain mode** | ✓ (`--wtf`) | ✗ | ✗ | partial |
 | **Script/recipe generation** | ✓ (`--script`, `--recipe`) | ✗ | ✗ | ✗ |
 | **Command caching** | ✓ (instant repeat queries) | ✗ | ✗ | ✗ |
-| **Shell integration (Ctrl+E)** | ✓ (zsh/bash/fish) | ✗ | ✗ | ✗ |
 | **Command bookmarks** | ✓ (`save`/`@alias`) | ✗ | ✗ | ✗ |
+| **Shell integration (Ctrl+E)** | ✓ (zsh/bash/fish) | ✗ | ✗ | ✗ |
+| **Shell completions** | ✓ (zsh/bash/fish) | ✗ | ✗ | ✗ |
 | **Project-aware** | ✓ (auto-detects Cargo/npm/Go/Docker) | ✗ | ✗ | ✗ |
+| **OS-aware flags** | ✓ (GNU↔BSD auto-correction) | ✗ | ✗ | ✗ |
+| **Post-generation validation** | ✓ (warns if binary missing) | ✗ | ✗ | ✗ |
 | **Free by default** | ✓ (Gemini/Groq/Ollama) | ✗ (OpenAI) | ✗ (Needs API) | ✗ (OpenAI) |
 | **Auto-retry on error** | ✓ (feeds stderr back) | ✗ | ✗ | ✗ |
 | **Web search** | ✓ (Tavily/DDG) | ✗ (plugins) | partial | ✗ (plugins) |
 | **Tool doc detection** | ✓ (7000+ embedded + --help) | ✗ | ✗ | ✗ |
 | **Tool discovery + install** | ✓ (registry-verified) | ✗ | ✗ | ✗ |
-| **Shell completions** | ✓ (zsh/bash/fish) | ✗ | ✗ | ✗ |
 | **Setup wizard** | ✓ (30s) | ✗ | ✓ | ✗ |
 | **Single binary** | ✓ (Rust) | Python | ✓ (Rust) | Python |
 
