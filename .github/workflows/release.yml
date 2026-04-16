@@ -129,7 +129,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Update Homebrew formula
+      - name: Update Homebrew formula with bottles
         env:
           GH_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
           TAG: ${{ needs.release-please.outputs.tag_name }}
@@ -159,12 +159,59 @@ jobs:
           SHA_LINUX_AMD64=$(sha256sum /tmp/eai-linux-amd64.tar.gz | cut -d' ' -f1)
           SHA_LINUX_ARM64=$(sha256sum /tmp/eai-linux-arm64.tar.gz | cut -d' ' -f1)
 
+          # Create Homebrew bottles from release binaries
+          create_bottle() {
+            local src_tarball="$1" os_tag="$2"
+            rm -rf /tmp/bottle_staging /tmp/extract_tmp
+            mkdir -p "/tmp/bottle_staging/eai/${VERSION}/bin" "/tmp/bottle_staging/eai/${VERSION}/.brew" /tmp/extract_tmp
+            tar -xzf "$src_tarball" -C /tmp/extract_tmp
+            cp /tmp/extract_tmp/eai "/tmp/bottle_staging/eai/${VERSION}/bin/eai"
+            chmod +x "/tmp/bottle_staging/eai/${VERSION}/bin/eai"
+            printf 'class Eai < Formula\n  desc "Natural language to shell commands"\n  homepage "https://github.com/%s"\n  version "%s"\n  license "MIT"\nend\n' \
+              "${GITHUB_REPOSITORY}" "${VERSION}" > "/tmp/bottle_staging/eai/${VERSION}/.brew/eai.rb"
+            tar -czf "/tmp/eai-${VERSION}.${os_tag}.bottle.tar.gz" -C /tmp/bottle_staging eai
+            rm -rf /tmp/bottle_staging /tmp/extract_tmp
+          }
+
+          for os_tag in arm64_tahoe arm64_sequoia arm64_sonoma arm64_ventura; do
+            create_bottle /tmp/eai-darwin-arm64.tar.gz "$os_tag"
+          done
+          for os_tag in tahoe sequoia sonoma ventura; do
+            create_bottle /tmp/eai-darwin-amd64.tar.gz "$os_tag"
+          done
+          create_bottle /tmp/eai-linux-amd64.tar.gz x86_64_linux
+          create_bottle /tmp/eai-linux-arm64.tar.gz arm64_linux
+
+          # Upload bottles to the release
+          gh release upload "${TAG}" --clobber /tmp/eai-${VERSION}.*.bottle.tar.gz
+
+          # Compute bottle SHA256s
+          BOTTLE_SHA_ARM64_TAHOE=$(sha256sum /tmp/eai-${VERSION}.arm64_tahoe.bottle.tar.gz | cut -d' ' -f1)
+          BOTTLE_SHA_ARM64_SEQUOIA=$(sha256sum /tmp/eai-${VERSION}.arm64_sequoia.bottle.tar.gz | cut -d' ' -f1)
+          BOTTLE_SHA_ARM64_SONOMA=$(sha256sum /tmp/eai-${VERSION}.arm64_sonoma.bottle.tar.gz | cut -d' ' -f1)
+          BOTTLE_SHA_ARM64_VENTURA=$(sha256sum /tmp/eai-${VERSION}.arm64_ventura.bottle.tar.gz | cut -d' ' -f1)
+          BOTTLE_SHA_TAHOE=$(sha256sum /tmp/eai-${VERSION}.tahoe.bottle.tar.gz | cut -d' ' -f1)
+          BOTTLE_SHA_SEQUOIA=$(sha256sum /tmp/eai-${VERSION}.sequoia.bottle.tar.gz | cut -d' ' -f1)
+          BOTTLE_SHA_SONOMA=$(sha256sum /tmp/eai-${VERSION}.sonoma.bottle.tar.gz | cut -d' ' -f1)
+          BOTTLE_SHA_VENTURA=$(sha256sum /tmp/eai-${VERSION}.ventura.bottle.tar.gz | cut -d' ' -f1)
+          BOTTLE_SHA_X86_64_LINUX=$(sha256sum /tmp/eai-${VERSION}.x86_64_linux.bottle.tar.gz | cut -d' ' -f1)
+
+          # Generate formula from template
           sed -e "s|GITHUB_REPOSITORY|${GITHUB_REPOSITORY}|g" \
-              -e "s/VERSION_PLACEHOLDER/${VERSION}/" \
+              -e "s/VERSION_PLACEHOLDER/${VERSION}/g" \
               -e "s/SHA_DARWIN_AMD64/${SHA_DARWIN_AMD64}/" \
               -e "s/SHA_DARWIN_ARM64/${SHA_DARWIN_ARM64}/" \
               -e "s/SHA_LINUX_AMD64/${SHA_LINUX_AMD64}/" \
               -e "s/SHA_LINUX_ARM64/${SHA_LINUX_ARM64}/" \
+              -e "s/BOTTLE_SHA_ARM64_TAHOE/${BOTTLE_SHA_ARM64_TAHOE}/" \
+              -e "s/BOTTLE_SHA_ARM64_SEQUOIA/${BOTTLE_SHA_ARM64_SEQUOIA}/" \
+              -e "s/BOTTLE_SHA_ARM64_SONOMA/${BOTTLE_SHA_ARM64_SONOMA}/" \
+              -e "s/BOTTLE_SHA_ARM64_VENTURA/${BOTTLE_SHA_ARM64_VENTURA}/" \
+              -e "s/BOTTLE_SHA_TAHOE/${BOTTLE_SHA_TAHOE}/" \
+              -e "s/BOTTLE_SHA_SEQUOIA/${BOTTLE_SHA_SEQUOIA}/" \
+              -e "s/BOTTLE_SHA_SONOMA/${BOTTLE_SHA_SONOMA}/" \
+              -e "s/BOTTLE_SHA_VENTURA/${BOTTLE_SHA_VENTURA}/" \
+              -e "s/BOTTLE_SHA_X86_64_LINUX/${BOTTLE_SHA_X86_64_LINUX}/" \
               homebrew-tap/Formula/eai.rb > /tmp/eai.rb
 
           TAP_SLUG="homebrew-tap"

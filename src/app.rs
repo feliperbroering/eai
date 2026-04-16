@@ -149,7 +149,7 @@ async fn run_prompt(cli: Cli, config: AppConfig) -> Result<()> {
             eprintln!();
             let execution = execute_command(shell, &generated.command).await?;
             if !execution.is_success() {
-                ui::print_failure(execution.exit_code);
+                ui::print_exit_status(execution.exit_code, !execution.is_empty());
             }
             return Ok(());
         }
@@ -308,7 +308,7 @@ async fn run_prompt(cli: Cli, config: AppConfig) -> Result<()> {
         eprintln!();
         let execution = execute_command(shell, &generated.command).await?;
         if !execution.is_success() {
-            ui::print_failure(execution.exit_code);
+            ui::print_exit_status(execution.exit_code, !execution.is_empty());
         } else if execution.is_empty() {
             ui::print_empty_output();
         }

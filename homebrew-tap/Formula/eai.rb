@@ -4,6 +4,19 @@ class Eai < Formula
   version "VERSION_PLACEHOLDER"
   license "MIT"
 
+  bottle do
+    root_url "https://github.com/GITHUB_REPOSITORY/releases/download/vVERSION_PLACEHOLDER"
+    sha256 cellar: :any_skip_relocation, arm64_tahoe:   "BOTTLE_SHA_ARM64_TAHOE"
+    sha256 cellar: :any_skip_relocation, arm64_sequoia: "BOTTLE_SHA_ARM64_SEQUOIA"
+    sha256 cellar: :any_skip_relocation, arm64_sonoma:  "BOTTLE_SHA_ARM64_SONOMA"
+    sha256 cellar: :any_skip_relocation, arm64_ventura: "BOTTLE_SHA_ARM64_VENTURA"
+    sha256 cellar: :any_skip_relocation, tahoe:         "BOTTLE_SHA_TAHOE"
+    sha256 cellar: :any_skip_relocation, sequoia:       "BOTTLE_SHA_SEQUOIA"
+    sha256 cellar: :any_skip_relocation, sonoma:        "BOTTLE_SHA_SONOMA"
+    sha256 cellar: :any_skip_relocation, ventura:       "BOTTLE_SHA_VENTURA"
+    sha256 cellar: :any_skip_relocation, x86_64_linux:  "BOTTLE_SHA_X86_64_LINUX"
+  end
+
   on_macos do
     if Hardware::CPU.arm?
       url "https://github.com/GITHUB_REPOSITORY/releases/download/v#{version}/eai-darwin-arm64.tar.gz"

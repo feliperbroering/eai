@@ -304,14 +304,22 @@ fn typewriter(text: &str, char_delay: Duration) {
 
 // ── execution status ───────────────────────────────────────────────────────
 
-pub fn print_failure(exit_code: i32) {
-    let msg = random_pick(FAILURE_MESSAGES);
-    eprintln!(
-        "  {} {} {}",
-        style("✗").red().bold(),
-        style(format!("exit {exit_code}")).red(),
-        style(format!("— {msg}")).red().dim()
-    );
+pub fn print_exit_status(exit_code: i32, had_output: bool) {
+    if had_output {
+        eprintln!(
+            "  {} {}",
+            style("↩").dim().bold(),
+            style(format!("exit {exit_code}")).dim(),
+        );
+    } else {
+        let msg = random_pick(FAILURE_MESSAGES);
+        eprintln!(
+            "  {} {} {}",
+            style("✗").red().bold(),
+            style(format!("exit {exit_code}")).red(),
+            style(format!("— {msg}")).red().dim()
+        );
+    }
 }
 
 pub fn print_empty_output() {
@@ -458,9 +466,10 @@ pub fn prompt_before_execution(
     let term_width = if raw_width == 0 { 120 } else { raw_width };
     let use_box = total_box_width <= term_width;
 
-    let box_lines = if use_box { 3 } else { 1 };
+    let cmd_lines = if use_box { 3 } else { 1 };
     let explain_lines = if explanation.is_some() { 1 } else { 0 };
-    let total_clear = 1 + box_lines + explain_lines + 1 + 3;
+    let action_bar_lines = action_bar_height(PRE_ACTIONS);
+    let total_clear = 1 + cmd_lines + explain_lines + 1 + action_bar_lines;
 
     let term = Term::stdout();
     loop {
@@ -493,6 +502,22 @@ pub fn prompt_after_execution() -> anyhow::Result<PostAction> {
     }
 }
 
+fn action_bar_fits_box(items: &[ActionItem]) -> bool {
+    let parts: Vec<String> = items
+        .iter()
+        .map(|item| format!("● {} {}", item.label, item.key))
+        .collect();
+    let visible_width = parts.join("  │  ").len();
+    let total_box_width = visible_width + 4 + 4 + 2;
+    let raw_width = Term::stderr().size().1 as usize;
+    let term_width = if raw_width == 0 { 120 } else { raw_width };
+    total_box_width <= term_width
+}
+
+fn action_bar_height(items: &[ActionItem]) -> usize {
+    if action_bar_fits_box(items) { 3 } else { 1 }
+}
+
 fn print_action_bar(items: &[ActionItem]) {
     let parts: Vec<String> = items
         .iter()
@@ -511,23 +536,33 @@ fn print_action_bar(items: &[ActionItem]) {
     let width = measure_text_width(&content);
     let pad = 2;
     let inner = width + pad * 2;
+    let total_box_width = inner + 4 + 2;
 
-    eprintln!(
-        "  {}",
-        fg(&format!("╭{}╮", "─".repeat(inner)), &Rgb::BORDER)
-    );
-    eprintln!(
-        "  {}{}{}{}{}",
-        fg("│", &Rgb::BORDER),
-        " ".repeat(pad),
-        content,
-        " ".repeat(pad),
-        fg("│", &Rgb::BORDER),
-    );
-    eprintln!(
-        "  {}",
-        fg(&format!("╰{}╯", "─".repeat(inner)), &Rgb::BORDER)
-    );
+    let raw_width = Term::stderr().size().1 as usize;
+    let term_width = if raw_width == 0 { 120 } else { raw_width };
+
+    if total_box_width <= term_width {
+        eprintln!(
+            "  {}",
+            fg(&format!("╭{}╮", "─".repeat(inner)), &Rgb::BORDER)
+        );
+        eprintln!(
+            "  {}{}{}{}{}",
+            fg("│", &Rgb::BORDER),
+            " ".repeat(pad),
+            content,
+            " ".repeat(pad),
+            fg("│", &Rgb::BORDER),
+        );
+        eprintln!(
+            "  {}",
+            fg(&format!("╰{}╯", "─".repeat(inner)), &Rgb::BORDER)
+        );
+    } else {
+        let compact_sep = format!(" {} ", fg("│", &Rgb::BORDER));
+        let compact = parts.join(&compact_sep);
+        eprintln!("  {compact}");
+    }
 }
 
 // ── explanation display ────────────────────────────────────────────────────
@@ -646,23 +681,33 @@ pub fn prompt_tool_install(count: usize) -> anyhow::Result<InstallAction> {
     let width = measure_text_width(&content);
     let pad = 2;
     let inner = width + pad * 2;
+    let total_box_width = inner + 4 + 2;
 
-    eprintln!(
-        "  {}",
-        fg(&format!("╭{}╮", "─".repeat(inner)), &Rgb::BORDER)
-    );
-    eprintln!(
-        "  {}{}{}{}{}",
-        fg("│", &Rgb::BORDER),
-        " ".repeat(pad),
-        content,
-        " ".repeat(pad),
-        fg("│", &Rgb::BORDER)
-    );
-    eprintln!(
-        "  {}",
-        fg(&format!("╰{}╯", "─".repeat(inner)), &Rgb::BORDER)
-    );
+    let raw_width = Term::stderr().size().1 as usize;
+    let term_width = if raw_width == 0 { 120 } else { raw_width };
+
+    if total_box_width <= term_width {
+        eprintln!(
+            "  {}",
+            fg(&format!("╭{}╮", "─".repeat(inner)), &Rgb::BORDER)
+        );
+        eprintln!(
+            "  {}{}{}{}{}",
+            fg("│", &Rgb::BORDER),
+            " ".repeat(pad),
+            content,
+            " ".repeat(pad),
+            fg("│", &Rgb::BORDER)
+        );
+        eprintln!(
+            "  {}",
+            fg(&format!("╰{}╯", "─".repeat(inner)), &Rgb::BORDER)
+        );
+    } else {
+        let compact_sep = format!(" {} ", fg("│", &Rgb::BORDER));
+        let compact = parts.join(&compact_sep);
+        eprintln!("  {compact}");
+    }
 
     let term = Term::stdout();
     loop {
