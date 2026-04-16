@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.14.1](https://github.com/feliperbroering/eai/compare/v0.14.0...v0.14.1) (2026-04-16)
+
+
+### Bug Fixes
+
+* improve exit status UX and action bar responsiveness ([0b92029](https://github.com/feliperbroering/eai/commit/0b92029e73d81c6d3cb8021b30a4bd2accea22fc))
+
 ## [0.14.0](https://github.com/feliperbroering/eai/compare/v0.13.0...v0.14.0) (2026-04-15)
 
 
